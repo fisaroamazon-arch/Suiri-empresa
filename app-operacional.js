@@ -43,30 +43,26 @@ window.formatarTempoDuracao = function(minutosTotais) {
 // ------------------ LIVRO DE PONTO COM RESILIÊNCIA OFFLINE ------------------
 window.carregarStatusPonto = async function() {
     if (!usuarioAtual) return;
-    const hoje = diaEmpresa(new Date()); 
+    const hoje = window.dataLocal(); 
+    const { data: dadosServidor, error: erroPonto } = await cliente.from('livro_ponto').select('*').eq('perfil_id', usuarioAtual.id).eq('data_registro', hoje).order('criado_em', { ascending: false }).limit(1);
+    let data = dadosServidor;
+    const filaPonto=window.obterFilaOffline();
+    const entradaPendente=filaPonto.filter(i=>i.tipo==='ponto' && i.payload.data_registro===hoje).at(-1)?.payload;
+    if(entradaPendente){
+        const saidaPendente=filaPonto.filter(i=>i.tipo==='ponto_update' && i.payload.entrada_operacao===entradaPendente.suiri_operacao_id).at(-1)?.payload;
+        data=[{...entradaPendente,...(saidaPendente||{}),offline:true}];
+    } else if(erroPonto && registroPontoAtual?.data_registro===hoje) data=[registroPontoAtual];
+    else if(erroPonto) { window.mostrarToast('Não foi possível consultar seu ponto. Confira a conexão.', 'erro'); return; }
+
     const btnPontoEntrada = document.getElementById('btn-ponto-entrada');
     const btnPontoSaida = document.getElementById('btn-ponto-saida');
     const statusPonto = document.getElementById('status-ponto');
     if(!btnPontoEntrada || !btnPontoSaida || !statusPonto) return;
 
-    document.querySelector('.cartao-ponto').dataset.estado = 'consulta';
     btnPontoEntrada.classList.add('oculto');
     btnPontoSaida.classList.add('oculto');
 
-    document.getElementById('turno-data').textContent = new Intl.DateTimeFormat('pt-BR', {weekday:'long', day:'numeric', month:'long', timeZone:fusoEmpresa}).format(new Date());
-    const pendencia = obterFilaOffline().find(i => i.tipo === 'ponto' && (i.payload.data_registro || diaEmpresa(new Date(i.timestamp))) === hoje);
-    if (pendencia) {
-        statusPonto.textContent = pendencia.revisar ? 'Ponto precisa de conferência.' : 'Ponto salvo no aparelho. Aguardando confirmação.';
-        registroPontoAtual = null;
-        return;
-    }
-    const { data, error } = await cliente.from('livro_ponto').select('*').eq('perfil_id', usuarioAtual.id).eq('data_registro', hoje).order('criado_em', { ascending: false }).limit(1);
-    if (error) {
-        statusPonto.textContent = 'Não foi possível consultar seu ponto. Atualize ao recuperar a conexão.';
-        registroPontoAtual = null;
-        return;
-    }
-    const diaSemanaHoje = String(new Date(hoje + 'T12:00:00Z').getUTCDay());
+    const diaSemanaHoje = String(new Date().getDay());
     const ehFixo = (perfilAtual?.tipo_contrato || 'fixo') === 'fixo';
     const folgasSemanais = Array.isArray(perfilAtual?.dias_folga_semana) ? perfilAtual.dias_folga_semana : [];
     const ehDiaDeFolgaSemanal = ehFixo && folgasSemanais.includes(diaSemanaHoje);
@@ -85,9 +81,8 @@ window.carregarStatusPonto = async function() {
             statusPonto.innerHTML = `<span style="color:var(--cor-sucesso); font-weight:700;">Expediente Concluído (Diária Aprovada ✓)</span>`;
         } else {
             if (!registroPontoAtual.horario_saida) {
-                const horaEntrada = new Date(registroPontoAtual.horario_entrada).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', timeZone:fusoEmpresa});
+                const horaEntrada = new Date(registroPontoAtual.horario_entrada).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
                 statusPonto.innerHTML = `Em operação desde as <strong style="color:var(--cor-primaria);">${horaEntrada}</strong>`;
-                document.querySelector('.cartao-ponto').dataset.estado = 'ativo';
                 btnPontoSaida.classList.remove('oculto');
             } else {
                 statusPonto.innerHTML = `Expediente Concluído.`;
@@ -104,84 +99,56 @@ window.carregarStatusPonto = async function() {
         registroPontoAtual = { status_turno: 'folga' };
     } else {
         registroPontoAtual = null;
-        statusPonto.textContent = "Tudo pronto para iniciar o expediente.";
+        statusPonto.textContent = "Verificando seu turno...";
         btnPontoEntrada.classList.remove('oculto');
     }
 };
 
 document.getElementById('btn-ponto-entrada')?.addEventListener('click', async () => {
     if (!usuarioAtual) return;
-    const botao = document.getElementById('btn-ponto-entrada');
-    if (botao.disabled) return;
-    botao.disabled = true;
-    try {
-        const hoje = diaEmpresa(new Date());
-        const agora = new Date().toISOString();
-        const payload = { 
-            perfil_id: usuarioAtual.id, 
-            empresa_id: empresaAtualId,
-            data_registro: hoje, 
-            status_turno: 'presente',
-            horario_entrada: agora 
-        };
+    const hoje = window.dataLocal();
+    const agora = new Date().toISOString();
+    const payload = { 
+        perfil_id: usuarioAtual.id, 
+        empresa_id: empresaAtualId,
+        data_registro: hoje, 
+        status_turno: 'presente',
+        horario_entrada: agora 
+    };
 
-        const res = await window.executarOuOffline('ponto', payload, () => cliente.from('livro_ponto').insert([payload]));
+    const res = await window.executarOuOffline('ponto', payload, () => cliente.from('livro_ponto').insert([payload]));
 
-        if (res.error) return window.mostrarToast(res.error.message, "erro");
-        window.somIniciarTarefa();
-        window.mostrarToast(res.offline ? "Ponto gravado offline! Sincronizará com a rede." : "Bom turno de trabalho!");
-        await window.carregarStatusPonto();
-        if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
-    } finally { botao.disabled = false; }
+    if (res?.error) return window.mostrarToast('Não foi possível registrar o ponto: ' + res.error.message, 'erro');
+    window.somIniciarTarefa();
+    window.mostrarToast(res.offline ? "Ponto gravado offline! Sincronizará com a rede." : "Bom turno de trabalho!");
+    await window.carregarStatusPonto();
+    if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
 });
 
 document.getElementById('btn-ponto-saida')?.addEventListener('click', async () => {
     if (!registroPontoAtual) return;
-    const botao = document.getElementById('btn-ponto-saida');
-    if (botao.disabled) return;
-    botao.disabled = true;
-    try {
-        const agora = new Date().toISOString();
-        const ehFreelance = perfilAtual?.tipo_contrato === 'freelance';
-        const novoStatus = ehFreelance ? 'aguardando_aprovacao_diaria' : 'presente';
+    const agora = new Date().toISOString();
+    const ehFreelance = perfilAtual?.tipo_contrato === 'freelance';
+    const novoStatus = ehFreelance ? 'aguardando_aprovacao_diaria' : 'presente';
 
-        const payload = { 
-            id: registroPontoAtual.id,
-            horario_saida: agora,
-            status_turno: novoStatus
-        };
+    const payload = { 
+        id: registroPontoAtual.id,
+        entrada_operacao: registroPontoAtual.suiri_operacao_id || null,
+        horario_saida: agora,
+        status_turno: novoStatus
+    };
 
-        const res = await window.executarOuOffline('ponto', payload, () => cliente.from('livro_ponto').update({ 
-            horario_saida: agora,
-            status_turno: novoStatus
-        }).eq('id', registroPontoAtual.id));
+    const res = await window.executarOuOffline('ponto_update', payload, () => cliente.from('livro_ponto').update({ 
+        horario_saida: agora,
+        status_turno: novoStatus
+    }).eq(registroPontoAtual.id ? 'id' : 'suiri_operacao_id', registroPontoAtual.id || registroPontoAtual.suiri_operacao_id));
 
-        if (res.error) return window.mostrarToast(res.error.message, "erro");
-        if (ehFreelance) {
-            const nomeFreelancer = window.obterNomeColaborador(usuarioAtual.id, 'Freelancer');
-            const horaIni = registroPontoAtual.horario_entrada ? new Date(registroPontoAtual.horario_entrada).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '--:--';
-            const horaFim = new Date(agora).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
-            const valDiaria = Number(perfilAtual?.valor_diaria) || 0;
-
-            const aviso = {
-                titulo: `Aprovação de Diária Freelancer: ${nomeFreelancer}`,
-                mensagem: `${nomeFreelancer} finalizou o expediente hoje (${horaIni} às ${horaFim}). Valor da Diária: R$ ${valDiaria.toFixed(2)}.`,
-                setor_destino: 'todos',
-                criado_por: usuarioAtual.id,
-                empresa_id: empresaAtualId,
-                lidos_por: [],
-                ponto_freelance_id: registroPontoAtual.id
-            };
-            const resultadoAviso = await executarOuOffline('aviso_diaria', aviso, () => cliente.from('avisos').insert([aviso]));
-            if (resultadoAviso.error) window.mostrarToast('Saída registrada. Confira o aviso de diária com a gestão.', 'erro');
-        }
-
-        window.somConcluirTarefa();
-        window.mostrarToast(res.offline ? "Saída salva no aparelho." : ehFreelance ? "Turno encerrado. Diária aguardando aprovação." : "Turno encerrado com sucesso!");
-        await window.carregarStatusPonto();
-        if (typeof window.carregarAvisos === 'function') window.carregarAvisos();
-        if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
-    } finally { botao.disabled = false; }
+    if (res?.error) return window.mostrarToast('Não foi possível registrar a saída: ' + res.error.message, 'erro');
+    window.somConcluirTarefa();
+    window.mostrarToast(ehFreelance ? "Turno encerrado! Diária submetida à aprovação." : (res.offline ? "Saída salva offline!" : "Turno encerrado com sucesso!"));
+    await window.carregarStatusPonto();
+    if (typeof window.carregarAvisos === 'function') window.carregarAvisos();
+    if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
 });
 
 // ------------------ GESTÃO DE PRESENÇA NA INSPEÇÃO ------------------
@@ -204,7 +171,7 @@ window.lancarGestaoPresencaInspecao = async function() {
     for (let i = 0; i < diasTotal; i++) {
         const d = new Date(hoje);
         d.setDate(hoje.getDate() + i);
-        const dataStr = diaEmpresa(d);
+        const dataStr = window.dataLocal(d);
 
         await cliente.from('livro_ponto').delete().eq('perfil_id', colabId).eq('data_registro', dataStr);
 
@@ -228,7 +195,7 @@ window.retornoAntecipadoAtestadoInspecao = async function() {
 
     if (!confirm("Confirmar retorno antecipado? Os registros futuros de folga e atestado deste colaborador serão removidos.")) return;
 
-    const hojeStr = diaEmpresa(new Date());
+    const hojeStr = window.dataLocal();
     const { error } = await cliente.from('livro_ponto').delete()
         .eq('perfil_id', colabId)
         .in('status_turno', ['atestado', 'folga'])
@@ -380,7 +347,7 @@ window.salvarTarefaAutonoma = async function() {
         }
     });
 
-    const hoje = diaEmpresa(new Date());
+    const hoje = window.dataLocal();
     const agora = new Date().toISOString();
 
     const payload = {
@@ -431,7 +398,7 @@ window.criarTarefa = async function() {
     const checkRecorrente = document.getElementById('check-tarefa-recorrente');
     const isRecorrente = checkRecorrente ? checkRecorrente.checked : true;
     const horaReinicio = document.getElementById('input-hora-reinicio')?.value || '01:00';
-    const hoje = diaEmpresa(new Date());
+    const hoje = window.dataLocal();
 
     const subitens = [];
     document.querySelectorAll('.input-subitem-dinamico').forEach((inp, idx) => {
@@ -517,7 +484,7 @@ async function atualizarStatusTarefa(id, payloadUpdate, msgToast, tipoSom = 'ini
     const payloadOffline = { id: id, dados: payloadUpdate };
     const res = await window.executarOuOffline('tarefa_update', payloadOffline, () => cliente.from('tarefas').update(payloadUpdate).eq('id', id));
 
-    if (res.error) return window.mostrarToast(res.error.message, "erro");
+    if (res?.error) return window.mostrarToast('Não foi possível alterar a tarefa: ' + res.error.message,'erro');
     window.mostrarToast(res.offline ? `${msgToast} (Guardado offline)` : msgToast);
     window.carregarTarefas(); 
 }
@@ -553,12 +520,11 @@ window.entrarComoAjudante = async function(id) {
         const payloadUpdate = { ajudantes: ajudantes };
         const payloadOffline = { id: id, dados: payloadUpdate };
 
-        const envio = await window.executarOuOffline('tarefa_update', payloadOffline, () => cliente.from('tarefas').update(payloadUpdate).eq('id', id));
-
-        if (envio.error) return window.mostrarToast(envio.error.message, 'erro');
+        const res=await window.executarOuOffline('tarefa_update', payloadOffline, () => cliente.from('tarefas').update(payloadUpdate).eq('id', id));
+        if(res?.error)return window.mostrarToast(res.error.message,'erro');
 
         if (window.somIniciarTarefa) window.somIniciarTarefa();
-        window.mostrarToast(envio.offline ? "Participação salva no aparelho." : "Você agora está ajudando nesta tarefa!");
+        window.mostrarToast("Você agora está ajudando nesta tarefa!");
         window.carregarTarefas();
     }
 };
@@ -582,11 +548,12 @@ window.concluirTarefa = async function(id) {
 
     if (tarefa.autonoma === true && !perfilAtual?.is_admin) {
         const agora = new Date().toISOString();
-        await cliente.from('tarefas').update({
+        const {error:erroConclusao} = await cliente.from('tarefas').update({
             status: 'aguardando_aprovacao',
             hora_fim: agora
         }).eq('id', id);
 
+        if (erroConclusao) return window.mostrarToast('Não foi possível concluir: '+erroConclusao.message,'erro');
         const nomeExecutor = window.obterNomeColaborador(tarefa.assumido_por, 'Colaborador');
         const tituloAviso = `Aprovação de Tarefa Autônoma: ${tarefa.titulo}`;
         const msgAviso = `${nomeExecutor} concluiu a tarefa autônoma "${tarefa.titulo}". Necessária aprovação gerencial.`;
@@ -608,22 +575,8 @@ window.concluirTarefa = async function(id) {
         return;
     }
 
-    if (tarefa.recorrente === false) {
-        if (window.somConcluirTarefa) window.somConcluirTarefa();
-        await cliente.from('tarefas').delete().eq('id', id);
-        window.mostrarToast("Tarefa finalizada e removida do painel!");
-        window.carregarTarefas();
-    } else {
-        const hojeStr = diaEmpresa(new Date());
-        await atualizarStatusTarefa(id, 
-            { 
-                status: 'concluida', 
-                hora_fim: new Date().toISOString(),
-                ultimo_reinicio: hojeStr 
-            }, 
-            "Excelente! Tarefa finalizada.", 'concluir'
-        );
-    }
+    await atualizarStatusTarefa(id,{status:'concluida',hora_fim:new Date().toISOString(),ultimo_reinicio:window.dataLocal()},'Excelente! Tarefa finalizada.','concluir');
+
 };
 
 // ------------------ HOMOLOGAÇÃO DE TAREFA AUTÓNOMA ------------------
@@ -650,7 +603,7 @@ window.aprovarTarefaAutonoma = async function(tarefaId, avisoId) {
 
 window.transformarTarefaAutonomaEmRotina = async function(tarefaId, avisoId) {
     const agora = new Date().toISOString();
-    const hojeStr = diaEmpresa(new Date(agora));
+    const hojeStr = agora.split('T')[0];
     const { error: erroTarefa } = await cliente.from('tarefas').update({
         status: 'concluida',
         recorrente: true,
@@ -697,80 +650,16 @@ try {
     ultimoResetAvisosDia = null;
 }
 
+let suiriReiniciando = false;
 window.verificarReinicioTarefasRecorrentes = async function() {
-    const agora = new Date();
-    const horaAtualStr = agora.toTimeString().slice(0, 5); 
-    const hojeStr = diaEmpresa(agora);
-
-    if (Array.isArray(cacheTarefas) && cacheTarefas.length > 0) {
-        const tarefasParaReiniciar = cacheTarefas.filter(t => {
-            if (t.recorrente !== true || t.status !== 'concluida') return false;
-            
-            if (t.hora_fim) {
-                const dataFimStr = t.hora_fim.split('T')[0];
-                if (dataFimStr === hojeStr) return false;
-            }
-
-            const horarioAlvo = t.horario_reinicio || '01:00';
-            const jaReiniciouHoje = (t.ultimo_reinicio === hojeStr);
-            return !jaReiniciouHoje && horaAtualStr >= horarioAlvo;
-        });
-
-        for (const tarefa of tarefasParaReiniciar) {
-            const subitensResetados = (Array.isArray(tarefa.subitens) ? tarefa.subitens : []).map(s => ({
-                ...s,
-                concluido: false,
-                feito_por: null
-            }));
-
-            await cliente.from('tarefas').update({
-                status: 'pendente',
-                assumido_por: null,
-                ajudantes: [],
-                hora_inicio: null,
-                hora_fim: null,
-                subitens: subitensResetados,
-                ultimo_reinicio: hojeStr
-            }).eq('id', tarefa.id);
-        }
-
-        if (tarefasParaReiniciar.length > 0) {
-            window.carregarTarefas();
-        }
-    }
-
-    if (horaAtualStr >= '01:00' && horaAtualStr <= '01:15' && ultimoResetAvisosDia !== hojeStr) {
-        ultimoResetAvisosDia = hojeStr;
-        try {
-            if (window.localStorage) {
-                window.localStorage.setItem('SaborDaCosta_ResetAvisos', hojeStr);
-            }
-        } catch (e) {}
-        
-        let queryAvisos = cliente.from('avisos').update({ lidos_por: [] });
-        if (empresaAtualId) {
-            queryAvisos = queryAvisos.eq('empresa_id', empresaAtualId);
-        } else {
-            queryAvisos = queryAvisos.neq('id', '00000000-0000-0000-0000-000000000000');
-        }
-        const { error: erroAvisos } = await queryAvisos;
-        if (!erroAvisos && typeof window.carregarAvisos === 'function') {
-            window.carregarAvisos();
-        }
-    }
+    if (suiriReiniciando || !navigator.onLine) return;
+    suiriReiniciando=true;
+    try {
+        const {data,error}=await cliente.rpc('suiri_reiniciar_rotinas');
+        if(error) { console.warn('Rotinas não atualizadas:',error.message); return; }
+        if(data>0) await window.carregarTarefas();
+    } finally {suiriReiniciando=false;}
 };
-
-setInterval(() => {
-    if (typeof window.verificarReinicioTarefasRecorrentes === 'function') {
-        window.verificarReinicioTarefasRecorrentes();
-    }
-}, 60000);
-
-setInterval(() => {
-    if (document.visibilityState === 'visible' && typeof window.atualizarDadosGeral === 'function') {
-        window.atualizarDadosGeral();
-    }
-}, 300000);
 
 window.reverterTarefa = async function(id) { 
     if(!confirm("Reiniciar esta tarefa e devolver ao painel de pendentes?")) return;
@@ -797,14 +686,16 @@ window.reverterTarefa = async function(id) {
 
 window.apagarTarefa = async function(id) { 
     if(confirm("Confirmar exclusão desta tarefa?")) { 
-        await cliente.from('tarefas').delete().eq('id', id); 
+        const {error}=await cliente.from('tarefas').delete().eq('id', id);
+        if(error)return window.mostrarToast(error.message,'erro');
         window.mostrarToast("Tarefa excluída.");
         window.carregarTarefas(); 
     } 
 };
 
 window.mudarPrioridadeTarefa = async function(id, novaPrio) {
-    await cliente.from('tarefas').update({ prioridade: String(novaPrio) }).eq('id', id);
+    const {error}=await cliente.from('tarefas').update({ prioridade: String(novaPrio) }).eq('id', id);
+    if(error)return window.mostrarToast(error.message,'erro');
     if (window.somIniciarTarefa) window.somIniciarTarefa();
     window.mostrarToast("Prioridade atualizada!");
     window.carregarTarefas();
@@ -846,8 +737,7 @@ window.toggleSubitemTarefa = async function(tarefaId, subitemId) {
     }
 
     const payloadOffline = { id: tarefaId, dados: { subitens: subitens } };
-    const envio = await window.executarOuOffline('tarefa_update', payloadOffline, () => cliente.from('tarefas').update({ subitens: subitens }).eq('id', tarefaId));
-    if (envio.error) return window.mostrarToast(envio.error.message, 'erro');
+    await window.executarOuOffline('tarefa_update', payloadOffline, () => cliente.from('tarefas').update({ subitens: subitens }).eq('id', tarefaId));
     window.carregarTarefas();
 };
 
@@ -1166,7 +1056,11 @@ window.carregarTarefas = async function() {
     if (error) return;
 
     cacheTarefas = data || [];
-    window.calcularTempoMedioHistorico(cacheTarefas);
+    const {data:historico,error:erroHistorico} = await cliente.from('suiri_historico_tarefas').select('registro').order('concluida_em',{ascending:false}).limit(1000);
+    if (erroHistorico) console.warn('Histórico de aprendizado indisponível:',erroHistorico.message);
+    const execucoes = new Map();
+    [...cacheTarefas,...(historico||[]).map(h=>h.registro)].forEach(t=>execucoes.set(t.id+'|'+t.hora_fim,t));
+    window.calcularTempoMedioHistorico([...execucoes.values()]);
     
     if (typeof window.verificarReinicioTarefasRecorrentes === 'function') {
         window.verificarReinicioTarefasRecorrentes();
@@ -1192,16 +1086,6 @@ window.desenharTarefas = function(tarefas) {
                (t.setor_destinado === setorUsuario);
     });
 
-    const minhas = tarefasFiltradas.filter(t => t.assumido_por === usuarioAtual.id || t.destinado_a === usuarioAtual.id || t.ajudantes?.includes(usuarioAtual.id) || (!t.destinado_a && (!t.setor_destinado || t.setor_destinado === 'todos' || t.setor_destinado === setorUsuario)));
-    const atual = minhas.find(t => t.status === 'em_andamento' && (t.assumido_por === usuarioAtual.id || t.ajudantes?.includes(usuarioAtual.id)));
-    const proxima = minhas.find(t => t.status === 'pendente' && t.destinado_a === usuarioAtual.id) || minhas.find(t => t.status === 'pendente');
-    const feitas = minhas.filter(t => t.status === 'concluida').length;
-    document.getElementById('turno-resumo').classList.remove('oculto');
-    document.getElementById('turno-proxima').textContent = atual ? 'Em andamento · ' + atual.titulo : proxima ? 'Próxima tarefa · ' + proxima.titulo : 'Nenhuma tarefa disponível para iniciar.';
-    const barra = document.getElementById('turno-progresso');
-    barra.max = minhas.length || 1;
-    barra.value = feitas;
-    document.getElementById('turno-progresso-texto').textContent = feitas + ' de ' + minhas.length + ' concluídas · Ver tarefas';
     const contEmServico = document.getElementById('lista-tarefas-em-servico');
     const contConcluidasMain = document.getElementById('lista-tarefas-concluidas-main');
     if(contEmServico) contEmServico.innerHTML = '';
@@ -1330,7 +1214,7 @@ window.desenharTarefas = function(tarefas) {
             textoStatus = `⏳ <strong>Aguardando Aprovação do Administrador</strong> (Concluída por ${esc(responsavelNome || 'Equipe')})`;
             botaoHTML = `<span style="font-size:11px; font-weight:700; color:var(--cor-alerta); align-self:center;">Pendente de Validação</span>`;
         } else if (tarefa.status === 'concluida') { 
-            const horaFim = tarefa.hora_fim ? new Date(tarefa.hora_fim).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', timeZone:fusoEmpresa}) : '';
+            const horaFim = tarefa.hora_fim ? new Date(tarefa.hora_fim).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '';
             classeStatus = 'tarefa-concluida'; 
             
             const nomesAjudantes = ajudantesLista.map(id => window.obterNomeColaborador(id, 'Colega')).join(', ');
@@ -1358,7 +1242,7 @@ window.desenharTarefas = function(tarefas) {
             const colabAlvo = idAlvo ? mapaPerfis[idAlvo] : null;
             if (colabAlvo && colabAlvo.telefone_whatsapp) {
                 btnCobrarWhatsHTML = `
-                    <button class="btn-whats" style="padding:4px 8px; font-size:10px; margin-top:4px;" onclick="window.cobrarTarefaWhatsApp('${colabAlvo.telefone_whatsapp}', '${esc(colabAlvo.nome)}', '${esc(tarefa.titulo)}', '${tarefa.horario_limite_alerta}')">
+                    <button class="btn-whats" style="padding:4px 8px; font-size:10px; margin-top:4px;" onclick="window.cobrarTarefaWhatsApp(${window.atributoJS(colabAlvo.telefone_whatsapp)}, ${window.atributoJS(colabAlvo.nome)}, ${window.atributoJS(tarefa.titulo)}, ${window.atributoJS(tarefa.horario_limite_alerta)})">
                         📲 Cobrar no Whats
                     </button>
                 `;
@@ -1380,7 +1264,7 @@ window.desenharTarefas = function(tarefas) {
             <div class="menu-dots-container">
                 <button type="button" class="btn-dots" onclick="event.stopPropagation(); window.toggleMenuAdmin('${tarefa.id}', event)">⋮</button>
                 <div id="menu-admin-${tarefa.id}" class="dropdown-admin" onclick="event.stopPropagation()">
-                    <button type="button" class="dropdown-item" onclick="window.editarTarefaNome('${tarefa.id}', '${esc(tarefa.titulo)}')">✏️ Editar Título</button>
+                    <button type="button" class="dropdown-item" onclick="window.editarTarefaNome('${tarefa.id}', ${window.atributoJS(tarefa.titulo)})">✏️ Editar Título</button>
                     <button type="button" class="dropdown-item" onclick="window.editarTarefaInstrucao('${tarefa.id}')">📝 Editar Instrução</button>
                     <button type="button" class="dropdown-item" onclick="window.abrirModalGerenciarSubitens('${tarefa.id}')">☑️ Gerenciar Subitens</button>
                     <div style="padding: 6px 12px 2px 12px; font-size: 10px; color: #034078; font-weight: 800;">PRIORIDADE</div>
@@ -1481,7 +1365,7 @@ window.carregarPainelAoVivo = async function() {
     }
 
     const agora = new Date();
-    const hojeStr = diaEmpresa(agora);
+    const hojeStr = window.dataLocal(agora);
     const diaSemanaHoje = String(agora.getDay());
     const horaAgoraStr = agora.toTimeString().slice(0, 5);
 
@@ -1509,7 +1393,7 @@ window.carregarPainelAoVivo = async function() {
         const nomeExibicao = window.obterNomeColaborador(f.id, f.nome || 'Equipe');
         
         const avatarHTML = avatarUrl
-            ? `<img src="${avatarUrl}" class="avatar-painel-colab" loading="lazy" alt="${esc(nomeExibicao)}">`
+            ? `<img src="${esc(avatarUrl)}" class="avatar-painel-colab" loading="lazy" alt="${esc(nomeExibicao)}">`
             : `<div class="avatar-painel-colab">${esc(nomeExibicao.charAt(0).toUpperCase())}</div>`;
 
         const bateuEntrada = !!(regPonto && regPonto.horario_entrada);
@@ -1557,7 +1441,7 @@ window.carregarPainelAoVivo = async function() {
                             <div style="font-size:12px; line-height:1.3;">${textoAcao}</div>
                         </div>
                     </div>
-                    <button class="btn-secundario" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="window.abrirModalMensagemDireta('${f.id}', '${esc(nomeExibicao)}')">✉️ Mensagem</button>
+                    <button class="btn-secundario" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="window.abrirModalMensagemDireta('${f.id}', ${window.atributoJS(nomeExibicao)})">✉️ Mensagem</button>
                 </div>
             `;
             cardsEmServico.push(card);
@@ -1576,7 +1460,7 @@ window.carregarPainelAoVivo = async function() {
                             <div style="font-size:12px; color:var(--cor-sucesso); font-weight:700;">Expediente Concluído hoje.</div>
                         </div>
                     </div>
-                    <button class="btn-secundario" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="window.abrirModalMensagemDireta('${f.id}', '${esc(nomeExibicao)}')">✉️ Mensagem</button>
+                    <button class="btn-secundario" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="window.abrirModalMensagemDireta('${f.id}', ${window.atributoJS(nomeExibicao)})">✉️ Mensagem</button>
                 </div>
             `;
             cardsEmServico.push(card);
@@ -1622,7 +1506,7 @@ window.carregarPainelAoVivo = async function() {
                         <div style="font-size:11px; color:var(--texto-suave);">${textoDetalhe}</div>
                     </div>
                 </div>
-                <button class="btn-secundario" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="window.abrirModalMensagemDireta('${f.id}', '${esc(nomeExibicao)}')">✉️ Mensagem</button>
+                <button class="btn-secundario" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="window.abrirModalMensagemDireta('${f.id}', ${window.atributoJS(nomeExibicao)})">✉️ Mensagem</button>
             </div>
         `;
         cardsAusentes.push(card);
@@ -1641,7 +1525,7 @@ window.carregarPainelAoVivo = async function() {
         const avatarUrl = window.obterAvatarColaborador(p.perfil_id);
         
         const avatarHTML = avatarUrl 
-            ? `<img src="${avatarUrl}" class="avatar-colab-mini" loading="lazy" alt="${esc(nomeColab)}">`
+            ? `<img src="${esc(avatarUrl)}" class="avatar-colab-mini" loading="lazy" alt="${esc(nomeColab)}">`
             : `<div class="avatar-colab-mini">${esc(nomeColab.charAt(0).toUpperCase())}</div>`;
 
         if (p.horario_entrada) {
@@ -1651,7 +1535,7 @@ window.carregarPainelAoVivo = async function() {
                     colabId: p.perfil_id,
                     tipo: 'entrada_ponto',
                     dataHora: dataEnt,
-                    horaStr: dataEnt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', timeZone:fusoEmpresa}),
+                    horaStr: dataEnt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
                     texto: `🟢 <strong>Entrada:</strong> <strong>${esc(nomeColab)}</strong> iniciou o turno de trabalho.`,
                     avatarStackHTML: `<div class="avatar-historico-stack">${avatarHTML}</div>`
                 });
@@ -1665,7 +1549,7 @@ window.carregarPainelAoVivo = async function() {
                     colabId: p.perfil_id,
                     tipo: 'saida_ponto',
                     dataHora: dataSai,
-                    horaStr: dataSai.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', timeZone:fusoEmpresa}),
+                    horaStr: dataSai.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
                     texto: `🔴 <strong>Saída:</strong> <strong>${esc(nomeColab)}</strong> encerrou o expediente.`,
                     avatarStackHTML: `<div class="avatar-historico-stack">${avatarHTML}</div>`
                 });
@@ -1680,7 +1564,7 @@ window.carregarPainelAoVivo = async function() {
         if (dataEvt < inicioJanelaHoje || dataEvt > fimJanelaHoje) return;
 
         const quem = window.obterNomeColaborador(t.assumido_por, 'Equipe');
-        const horaStr = dataEvt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', timeZone:fusoEmpresa});
+        const horaStr = dataEvt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         
         let tempoTexto = '';
         if (t.hora_inicio && t.hora_fim) {
@@ -1886,12 +1770,10 @@ window.marcarAvisoLido = async function(id) {
         listaLidos.push(usuarioAtual.id);
         const payloadOffline = { id: id, lidos_por: listaLidos };
 
-        const envio = await window.executarOuOffline('aviso_leitura', payloadOffline, () => cliente.from('avisos').update({ lidos_por: listaLidos }).eq('id', id));
-
-        if (envio.error) return window.mostrarToast(envio.error.message, 'erro');
+        await window.executarOuOffline('aviso_leitura', payloadOffline, () => cliente.from('avisos').update({ lidos_por: listaLidos }).eq('id', id));
 
         window.somIniciarTarefa();
-        window.mostrarToast(envio.offline ? "Leitura salva no aparelho." : "Leitura confirmada!");
+        window.mostrarToast("Leitura confirmada!");
         window.carregarAvisos();
     }
 };
@@ -1924,7 +1806,7 @@ window.carregarAvisos = async function() {
 
         const card = document.createElement('div');
         card.className = 'cartao-lista cartao-aviso';
-        const dataAviso = new Date(aviso.criado_em).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', timeZone:fusoEmpresa});
+        const dataAviso = new Date(aviso.criado_em).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         
         let tagDestino = aviso.setor_destino === 'todos' ? 'Geral' : (aviso.setor_destino.charAt(0).toUpperCase() + aviso.setor_destino.slice(1));
         if (aviso.destinado_a) {

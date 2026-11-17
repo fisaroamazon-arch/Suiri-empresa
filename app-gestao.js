@@ -61,7 +61,7 @@ window.obterItensComprasFiltradosPorTempo = function(itens) {
     const agora = new Date();
     const dataLimite3Dias = new Date(agora);
     dataLimite3Dias.setDate(dataLimite3Dias.getDate() - 3);
-    const limiteStr3Dias = diaEmpresa(dataLimite3Dias);
+    const limiteStr3Dias = window.dataLocal(dataLimite3Dias);
 
     return (itens || []).filter(p => {
         const st = p.status || (p.lido ? 'comprado' : 'pendente');
@@ -236,7 +236,7 @@ window.renderizarQuadroComprasUnificado = function() {
 };
 
 window.marcarItemComoComprado = async function(id) {
-    const hojeStr = diaEmpresa(new Date());
+    const hojeStr = window.dataLocal();
     const { error } = await cliente.from('pedidos_compra').update({
         status: 'comprado',
         lido: true,
@@ -292,8 +292,8 @@ window.emitirRelatorioComprasGestao = function() {
     const dFimEl = document.getElementById('data-fim');
     const tRelEl = document.getElementById('tipo-relatorio');
 
-    if (dIniEl) dIniEl.value = diaEmpresa(data30diasAtras);
-    if (dFimEl) dFimEl.value = diaEmpresa(agora);
+    if (dIniEl) dIniEl.value = window.dataLocal(data30diasAtras);
+    if (dFimEl) dFimEl.value = window.dataLocal(agora);
     if (tRelEl) tRelEl.value = 'pedidos';
 
     window.alternarTelas('relatorios');
@@ -349,179 +349,12 @@ window.carregarPedidosCompra = async function() {
 // 🍲 2. CARDÁPIO OFICIAL COMPLETO (SABOR DA COSTA) EM MEMÓRIA RAM
 // =========================================================================
 
-let cacheCardapioConsumo = [
-    // 1. INDICAÇÕES DO CHEF
-    { id: 'chef_1', nome_item: 'Sequências de Camarão (2 pessoas)', valor_padrao: 228.00 },
-    { id: 'chef_2', nome_item: 'Caranha à Belle Meunière (2 pessoas)', valor_padrao: 278.00 },
-    { id: 'chef_3', nome_item: 'Banquete da Costa – Seleção Premium (4 pessoas)', valor_padrao: 450.00 },
-
-    // 2. BEBIDAS NÃO ALCOÓLICAS
-    { id: 'beb_1', nome_item: 'Água Mineral (com ou sem gás)', valor_padrao: 9.00 },
-    { id: 'beb_2', nome_item: 'Água Tônica FYS (com ou sem açúcar)', valor_padrao: 8.00 },
-    { id: 'beb_3', nome_item: 'Refrigerante (Coca-Cola, Guaraná, Soda, Tônica)', valor_padrao: 10.00 },
-    { id: 'beb_4', nome_item: 'Suco Natural (Limão, Laranja, Morango, Abacaxi, Acerola, Maracujá)', valor_padrao: 13.00 },
-    { id: 'beb_5', nome_item: 'Soda Italiana (Sabores)', valor_padrao: 15.00 },
-    { id: 'beb_6', nome_item: 'Chá Gelado Saborizado', valor_padrao: 18.00 },
-    { id: 'beb_7', nome_item: 'Red Bull', valor_padrao: 18.00 },
-
-    // 3. CERVEJAS 600ML
-    { id: 'cerv_1', nome_item: 'Amstel 600ml', valor_padrao: 18.00 },
-    { id: 'cerv_2', nome_item: 'Petra 600ml', valor_padrao: 20.00 },
-    { id: 'cerv_3', nome_item: 'Spaten 600ml', valor_padrao: 22.00 },
-    { id: 'cerv_4', nome_item: 'Stella Artois 600ml', valor_padrao: 23.00 },
-    { id: 'cerv_5', nome_item: 'Heineken 600ml', valor_padrao: 24.00 },
-    { id: 'cerv_6', nome_item: 'Corona 600ml', valor_padrao: 24.00 },
-    { id: 'cerv_7', nome_item: 'Cerveja Original 600ml', valor_padrao: 24.00 },
-    { id: 'cerv_8', nome_item: 'Stella Artois Gold 600ml', valor_padrao: 24.00 },
-    { id: 'cerv_9', nome_item: 'Praya Lager 600ml', valor_padrao: 27.00 },
-
-    // 4. CERVEJAS LONG NECK 330ML & ESPECIAIS
-    { id: 'ln_1', nome_item: 'Praya sem glúten Long Neck', valor_padrao: 15.00 },
-    { id: 'ln_2', nome_item: 'Stella Artois Long Neck', valor_padrao: 15.00 },
-    { id: 'ln_3', nome_item: 'Stella Artois Gold Long Neck', valor_padrao: 15.00 },
-    { id: 'ln_4', nome_item: 'LAC Malzbier Long Neck', valor_padrao: 15.00 },
-    { id: 'ln_5', nome_item: 'Heineken Long Neck', valor_padrao: 16.00 },
-    { id: 'ln_6', nome_item: 'Heineken Ultimate sem Glúten Long Neck', valor_padrao: 16.00 },
-    { id: 'ln_7', nome_item: 'Heineken Zero Long Neck', valor_padrao: 16.00 },
-    { id: 'esp_1', nome_item: 'Baden IPA 600ml', valor_padrao: 24.00 },
-    { id: 'esp_2', nome_item: 'Schornstein 500ml (Pilsen ou IPA)', valor_padrao: 25.00 },
-    { id: 'esp_3', nome_item: 'Chopp Saint Bier Golden Ale 750ml', valor_padrao: 43.00 },
-    { id: 'esp_4', nome_item: 'Cerveja Coruja Viva 750ml', valor_padrao: 46.00 },
-
-    // 5. DOSES, CAIPIRINHAS & DRINKS
-    { id: 'dos_1', nome_item: 'Dose Cachaça Artesanal', valor_padrao: 3.00 },
-    { id: 'dos_2', nome_item: 'Dose Vodka Kalvelage', valor_padrao: 15.00 },
-    { id: 'dos_3', nome_item: 'Dose Campari', valor_padrao: 16.00 },
-    { id: 'dos_4', nome_item: 'Dose Underberg', valor_padrao: 16.00 },
-    { id: 'dos_5', nome_item: 'Dose Vodka Absolut', valor_padrao: 20.00 },
-    { id: 'dos_6', nome_item: 'Dose Whisky Red Label', valor_padrao: 27.00 },
-    { id: 'dos_7', nome_item: 'Dose Whisky Jack Daniel\'s', valor_padrao: 33.00 },
-    { id: 'dos_8', nome_item: 'Dose Whisky Black Label', valor_padrao: 33.00 },
-    { id: 'dos_9', nome_item: 'Dose Whisky Chivas Regal', valor_padrao: 33.00 },
-    { id: 'caip_1', nome_item: 'Caipirinha de Vinho', valor_padrao: 35.00 },
-    { id: 'caip_2', nome_item: 'Caipirinha Cachaça 51', valor_padrao: 36.00 },
-    { id: 'caip_3', nome_item: 'Caipirinha Cachaça Artesanal', valor_padrao: 39.00 },
-    { id: 'caip_4', nome_item: 'Caipirinha Vodka Kalvelage', valor_padrao: 39.00 },
-    { id: 'caip_5', nome_item: 'Caipirinha Bacardi', valor_padrao: 39.00 },
-    { id: 'caip_6', nome_item: 'Caipirinha de Saquê', valor_padrao: 39.00 },
-    { id: 'caip_7', nome_item: 'Caipirinha Steinhaeger', valor_padrao: 39.00 },
-    { id: 'caip_8', nome_item: 'Caipirinha Vodka Absolut', valor_padrao: 44.00 },
-    { id: 'drk_1', nome_item: 'Drink Fresh Apple', valor_padrao: 35.00 },
-    { id: 'drk_2', nome_item: 'Drink Gin Tônica', valor_padrao: 36.00 },
-    { id: 'drk_3', nome_item: 'Drink Spiced Hibiscus', valor_padrao: 37.00 },
-    { id: 'drk_4', nome_item: 'Drink Jabuticaba Sour', valor_padrao: 37.00 },
-    { id: 'drk_5', nome_item: 'Drink Negroni', valor_padrao: 37.00 },
-    { id: 'drk_6', nome_item: 'Drink Aperol Spritz', valor_padrao: 37.00 },
-    { id: 'drk_7', nome_item: 'Drink Jackie Coke', valor_padrao: 40.00 },
-    { id: 'drk_8', nome_item: 'Drink Jackie Tea Sour', valor_padrao: 40.00 },
-
-    // 6. ENTRADAS, PETISCOS & PORÇÕES
-    { id: 'ost_1', nome_item: 'Ostras ao Bafo (12 un)', valor_padrao: 63.00 },
-    { id: 'ost_2', nome_item: 'Ostras ao Natural (12 un)', valor_padrao: 65.00 },
-    { id: 'ost_3', nome_item: 'Ostras Gratinadas (12 un)', valor_padrao: 94.00 },
-    { id: 'siri_1', nome_item: 'Casquinha de Siri (1 unidade)', valor_padrao: 20.00 },
-    { id: 'siri_2', nome_item: 'Refogado de Siri (1 unidade)', valor_padrao: 32.00 },
-    { id: 'siri_3', nome_item: 'Refogado de Siri com Catupiry (1 un)', valor_padrao: 38.00 },
-    { id: 'siri_4', nome_item: 'Ceviche de Siri', valor_padrao: 84.00 },
-    { id: 'siri_5', nome_item: 'Bolinho de Siri (6 unidades)', valor_padrao: 87.00 },
-    { id: 'frut_1', nome_item: 'Marisco à Vinagrete', valor_padrao: 74.00 },
-    { id: 'frut_2', nome_item: 'Marisco à Milanesa', valor_padrao: 77.00 },
-    { id: 'frut_3', nome_item: 'Ceviche de Carapeva', valor_padrao: 80.00 },
-    { id: 'frut_4', nome_item: 'Bolinho de Peixe Carapeva (6 un)', valor_padrao: 82.00 },
-    { id: 'frut_5', nome_item: 'Lula à Dorê', valor_padrao: 95.00 },
-    { id: 'frut_6', nome_item: 'Lula Grelhada', valor_padrao: 98.00 },
-    { id: 'cam_1', nome_item: 'Camarão ao Bafo', valor_padrao: 79.00 },
-    { id: 'cam_2', nome_item: 'Camarão Alho e Óleo com Casca', valor_padrao: 79.00 },
-    { id: 'cam_3', nome_item: 'Camarão Chips Crocante', valor_padrao: 79.00 },
-    { id: 'cam_4', nome_item: 'Camarão à Milanesa (Porção)', valor_padrao: 126.00 },
-    { id: 'cam_5', nome_item: 'Camarão Alho e Óleo sem Casca', valor_padrao: 137.00 },
-    { id: 'cam_6', nome_item: 'Petisco Misto da Casa (Lula, Isca, Camarões e Fritas)', valor_padrao: 229.00 },
-    { id: 'porc_1', nome_item: 'Salada Simples (Alface, Tomate, Cenoura)', valor_padrao: 23.00 },
-    { id: 'porc_2', nome_item: 'Salada da Casa Completa', valor_padrao: 48.00 },
-    { id: 'porc_3', nome_item: 'Porção Batata Frita ou Souté', valor_padrao: 38.00 },
-    { id: 'porc_4', nome_item: 'Maionese Simples', valor_padrao: 41.00 },
-    { id: 'porc_5', nome_item: 'Maionese de Camarão', valor_padrao: 73.00 },
-    { id: 'porc_6', nome_item: 'Ova de Tainha ou Caranha', valor_padrao: 56.00 },
-    { id: 'porc_7', nome_item: 'Iscas de Frango', valor_padrao: 61.00 },
-    { id: 'porc_8', nome_item: 'Peixe Frito em Postas (Aperitivo sem Acomp.)', valor_padrao: 77.00 },
-    { id: 'porc_9', nome_item: 'Iscas de Peixe Carapeva', valor_padrao: 87.00 },
-    { id: 'porc_10', nome_item: 'Iscas de Peixe Robalo', valor_padrao: 89.00 },
-
-    // 7. PASTÉIS (1 UNIDADE)
-    { id: 'pas_1', nome_item: 'Pastel de Queijo', valor_padrao: 14.00 },
-    { id: 'pas_2', nome_item: 'Pastel de Pizza', valor_padrao: 14.00 },
-    { id: 'pas_3', nome_item: 'Pastel de Frango', valor_padrao: 15.00 },
-    { id: 'pas_4', nome_item: 'Pastel de Carne', valor_padrao: 16.00 },
-    { id: 'pas_5', nome_item: 'Pastel de Camarão', valor_padrao: 18.00 },
-    { id: 'pas_6', nome_item: 'Pastel de Siri', valor_padrao: 18.00 },
-    { id: 'pas_7', nome_item: 'Pastel de Berbigão', valor_padrao: 18.00 },
-    { id: 'pas_8', nome_item: 'Pastel de Camarão com Queijo', valor_padrao: 18.00 },
-
-    // 8. PRATOS PRINCIPAIS (2 PESSOAS)
-    { id: 'prat_1', nome_item: 'Espada Grelhada (2 pessoas)', valor_padrao: 124.00 },
-    { id: 'prat_2', nome_item: 'Espada Grelhada ao Molho de Camarão', valor_padrao: 152.00 },
-    { id: 'prat_3', nome_item: 'Filé de Espada à Milanesa', valor_padrao: 122.00 },
-    { id: 'prat_4', nome_item: 'Filé de Espada à Milanesa ao Molho de Camarão', valor_padrao: 150.00 },
-    { id: 'prat_5', nome_item: 'Espada à Belle Meunière', valor_padrao: 155.00 },
-    { id: 'prat_6', nome_item: 'Anchova Grelhada (2 pessoas)', valor_padrao: 160.00 },
-    { id: 'prat_7', nome_item: 'Anchova à Belle Meunière', valor_padrao: 196.00 },
-    { id: 'prat_8', nome_item: 'Tainha Grelhada (2 pessoas)', valor_padrao: 160.00 },
-    { id: 'prat_9', nome_item: 'Tainha à Belle Meunière', valor_padrao: 196.00 },
-    { id: 'prat_10', nome_item: 'Peixe Frito em Postas Refeição Completa', valor_padrao: 132.00 },
-    { id: 'prat_11', nome_item: 'Carapeva Grelhada', valor_padrao: 168.00 },
-    { id: 'prat_12', nome_item: 'Carapeva Grelhada ao Molho de Camarão', valor_padrao: 192.00 },
-    { id: 'prat_13', nome_item: 'Filé de Carapeva à Milanesa', valor_padrao: 164.00 },
-    { id: 'prat_14', nome_item: 'Filé de Carapeva ao Molho de Camarão', valor_padrao: 190.00 },
-    { id: 'prat_15', nome_item: 'Carapeva à Belle Meunière', valor_padrao: 195.00 },
-    { id: 'prat_16', nome_item: 'Robalo Grelhado', valor_padrao: 208.00 },
-    { id: 'prat_17', nome_item: 'Filé de Robalo à Milanesa', valor_padrao: 172.00 },
-    { id: 'prat_18', nome_item: 'Filé de Robalo ao Molho de Camarão', valor_padrao: 196.00 },
-    { id: 'prat_19', nome_item: 'Robalo à Belle Meunière', valor_padrao: 232.00 },
-    { id: 'prat_20', nome_item: 'Linguado Grelhado', valor_padrao: 226.00 },
-    { id: 'prat_21', nome_item: 'Filé de Linguado à Milanesa', valor_padrao: 199.00 },
-    { id: 'prat_22', nome_item: 'Linguado ao Molho de Camarão', valor_padrao: 228.00 },
-    { id: 'prat_23', nome_item: 'Linguado à Belle Meunière', valor_padrao: 255.00 },
-    { id: 'prat_24', nome_item: 'Caranha Grelhada', valor_padrao: 245.00 },
-    { id: 'prat_25', nome_item: 'Sequência Sabor da Costa (2 pessoas)', valor_padrao: 276.00 },
-
-    // 9. PRATOS COM CAMARÃO, MOQUECAS & VEGETARIANOS
-    { id: 'cam_p1', nome_item: 'Risoto de Camarão (2 pessoas)', valor_padrao: 169.00 },
-    { id: 'cam_p2', nome_item: 'Prato Camarão à Milanesa (2 pessoas)', valor_padrao: 189.00 },
-    { id: 'cam_p3', nome_item: 'Camarão à Parmegiana (2 pessoas)', valor_padrao: 199.00 },
-    { id: 'cam_p4', nome_item: 'Strogonoff de Camarão (2 pessoas)', valor_padrao: 220.00 },
-    { id: 'cam_p5', nome_item: 'Moqueca de Camarão (2 pessoas)', valor_padrao: 228.00 },
-    { id: 'moq_1', nome_item: 'Moqueca Mista (Caranha e Camarão)', valor_padrao: 235.00 },
-    { id: 'moq_2', nome_item: 'Moqueca Mista (Caranha, Camarão e Lula)', valor_padrao: 237.00 },
-    { id: 'veg_1', nome_item: 'Prato Vegetariano (Omelete Especial)', valor_padrao: 90.00 },
-    { id: 'veg_2', nome_item: 'Prato Vegano (Moqueca ou Risoto de Legumes)', valor_padrao: 146.00 },
-
-    // 10. CARNES & FRANGOS (2 PESSOAS)
-    { id: 'carne_1', nome_item: 'Frango à Milanesa ou Grelhado (2 pessoas)', valor_padrao: 120.00 },
-    { id: 'carne_2', nome_item: 'Frango à Parmegiana (2 pessoas)', valor_padrao: 160.00 },
-    { id: 'carne_3', nome_item: 'Contra-Filé Grelhado (2 pessoas)', valor_padrao: 180.00 },
-
-    // 11. EXECUTIVOS & KIDS (INDIVIDUAIS)
-    { id: 'exec_1', nome_item: 'Prato Kids de Alcatra', valor_padrao: 47.00 },
-    { id: 'exec_2', nome_item: 'Prato Feito (Frango ou Peixe)', valor_padrao: 56.00 },
-    { id: 'exec_3', nome_item: 'Prato Feito de Alcatra', valor_padrao: 65.00 },
-
-    // 12. SOBREMESAS
-    { id: 'sob_1', nome_item: 'Arroz Doce de Pamonha', valor_padrao: 18.00 },
-    { id: 'sob_2', nome_item: 'Mousse de Chocolate', valor_padrao: 28.00 },
-    { id: 'sob_3', nome_item: 'Pudim de Leite', valor_padrao: 32.00 },
-    { id: 'sob_4', nome_item: 'Petit Gâteau com Sorvete', valor_padrao: 36.00 }
-];
+let cacheCardapioConsumo = [];
 
 window.inicializarCardapioConsumo = async function() {
-    try {
-        const { data, error } = await cliente.from('cardapio_consumo').select('*').eq('ativo', true).order('nome_item');
-        if (!error && data && data.length > 0) {
-            const mapaItens = {};
-            cacheCardapioConsumo.forEach(item => { mapaItens[item.nome_item.toLowerCase()] = item; });
-            data.forEach(item => { mapaItens[item.nome_item.toLowerCase()] = item; });
-            cacheCardapioConsumo = Object.values(mapaItens);
-        }
-    } catch(e) {}
+    const {data, error} = await cliente.from('cardapio_consumo').select('*').eq('ativo', true).order('nome_item');
+    if (error) { cacheCardapioConsumo = []; window.mostrarToast('Não foi possível carregar o cardápio: ' + error.message, 'erro'); return; }
+    cacheCardapioConsumo = data || [];
 };
 
 window.filtrarAutocompleteConsumo = function(termo) {
@@ -704,7 +537,7 @@ window.carregarContasPagar = async function() {
 };
 
 window.verificarContasVencendoHojeGestao = async function() {
-    const hojeStr = diaEmpresa(new Date());
+    const hojeStr = window.dataLocal();
     const { data } = await cliente.from('contas_pagar')
         .select('*')
         .eq('status', 'pendente')
@@ -726,7 +559,7 @@ window.verificarContasVencendoHojeGestao = async function() {
 };
 
 window.filtrarContasHojeGestao = function() {
-    const hojeStr = diaEmpresa(new Date());
+    const hojeStr = window.dataLocal();
     const container = document.getElementById('container-itens-gestao-contas');
     if (!container) return;
 
@@ -744,7 +577,7 @@ window.renderizarListaContasGestao = function() {
     
     const limite7Dias = new Date(hoje);
     limite7Dias.setDate(limite7Dias.getDate() + 7);
-    const limite7DiasStr = diaEmpresa(limite7Dias);
+    const limite7DiasStr = window.dataLocal(limite7Dias);
 
     let contas = cacheContasPagar;
 
@@ -762,7 +595,7 @@ window.renderizarListaContasGestao = function() {
 
 window.desenharCartoesContas = function(contas, container) {
     container.innerHTML = '';
-    const hojeStr = diaEmpresa(new Date());
+    const hojeStr = window.dataLocal();
 
     if (contas.length === 0) {
         container.innerHTML = '<p class="status-texto" style="text-align:center; padding:18px 0; color:var(--cor-sucesso); font-weight:700;">✓ Nenhuma conta a pagar para os próximos 7 dias.</p>';
@@ -788,7 +621,7 @@ window.desenharCartoesContas = function(contas, container) {
 
         const temCodigo = !!c.codigo_barras_pix;
         const btnCopiar = temCodigo 
-            ? `<button class="btn-copiar-codigo" onclick="window.copiarCodigoConta('${esc(c.codigo_barras_pix)}')">📋 Copiar ${c.tipo_pagamento === 'pix' ? 'Pix' : 'Código'}</button>` 
+            ? `<button class="btn-copiar-codigo" onclick="window.copiarCodigoConta(${window.atributoJS(c.codigo_barras_pix)})">📋 Copiar ${c.tipo_pagamento === 'pix' ? 'Pix' : 'Código'}</button>` 
             : '';
 
         const btnPagar = ehPendente
@@ -870,7 +703,7 @@ window.salvarContaPagarGestao = async function() {
 };
 
 window.marcarContaComoPaga = async function(id) {
-    const hojeStr = diaEmpresa(new Date());
+    const hojeStr = window.dataLocal();
     const { error } = await cliente.from('contas_pagar').update({
         status: 'pago',
         data_pagamento: hojeStr
@@ -967,7 +800,7 @@ window.toggleFormFechamentoCaixa = function() {
     if (aberto) {
         const inData = document.getElementById('input-caixa-data');
         if (inData && !inData.value) {
-            inData.value = diaEmpresa(new Date());
+            inData.value = window.dataLocal();
         }
         window.recalcularTotaisFormCaixa();
     }
@@ -1207,7 +1040,7 @@ window.abrirModalDisparoWhatsCaixa = function() {
                         <span class="item-whats-socio-tel">${esc(tel)}</span>
                     </div>
                     ${temNumero 
-                        ? `<button class="btn-whats" onclick="window.dispararFechamentoSocioDireto('${esc(s.telefone_whatsapp)}')">Enviar</button>` 
+                        ? `<button class="btn-whats" onclick="window.dispararFechamentoSocioDireto(${window.atributoJS(s.telefone_whatsapp)})">Enviar</button>` 
                         : `<span style="font-size:10px; color:var(--texto-suave);">Sem Whats</span>`
                     }
                 `;
@@ -1253,8 +1086,10 @@ window.gerarRelatorio = async function() {
     const filtroSetor = document.getElementById('filtro-setor-relatorio')?.value || 'todos';
     const tipoSelecionado = document.getElementById('tipo-relatorio')?.value;
     
+    if (dataInicio && dataFim && dataInicio > dataFim) return window.mostrarToast('A data inicial deve ser anterior à final.', 'erro');
     if(!dataInicio || !dataFim) return window.mostrarToast("Selecione o intervalo de datas.", "erro");
 
+    try {
     let nomeTipo = "Relatório Completo";
     if(tipoSelecionado === 'frequencia') nomeTipo = "Relatório de Assiduidade e Ponto";
     if(tipoSelecionado === 'produtividade') nomeTipo = "Relatório de Produtividade & Tempos";
@@ -1272,7 +1107,7 @@ window.gerarRelatorio = async function() {
     
     // Nomenclatura Inteligente do Arquivo PDF (ex: Relatorio_Filipe_23-10-2026.pdf)
     const nomeLimpoParaArquivo = nomeFiltroFunc ? nomeFiltroFunc.replace(/\s+/g, '_') : 'Equipe';
-    const dataHojeFormatada = diaEmpresa(new Date()).split('-').reverse().join('-');
+    const dataHojeFormatada = window.dataLocal().split('-').reverse().join('-');
     nomeArquivoPdfSugerido = `Relatorio_${nomeLimpoParaArquivo}_${dataHojeFormatada}.pdf`;
 
     ultimoWhatsAppColaboradorRelatorio = (filtroFunc !== 'todos' && mapaPerfis[filtroFunc]) 
@@ -1285,10 +1120,10 @@ window.gerarRelatorio = async function() {
     document.getElementById('relatorio-pdf-container')?.classList.remove('oculto');
     containerResultados.innerHTML = '<p style="text-align:center; color:#000;">Compilando dados...</p>';
     
-    const logoUrl = "https://apbqjbrqwulgohcjkxae.supabase.co/storage/v1/object/public/sistema-imagens/barco_sabor_da_costa.png";
+    const logoUrl = "icon-192x192.png";
 
     const dEmpresa = dadosEmpresaAtual || {};
-    const nomeEmpresa = dEmpresa.nome_empresa || 'Sabor da Costa';
+    const nomeEmpresa = dEmpresa.nome_fantasia || dEmpresa.nome_empresa || 'Suiri';
     const cnpjEmpresa = dEmpresa.cnpj ? `CNPJ: ${esc(dEmpresa.cnpj)}` : '';
     const telEmpresa = dEmpresa.telefone ? `Tel: ${esc(dEmpresa.telefone)}` : '';
     const endEmpresa = dEmpresa.endereco ? esc(dEmpresa.endereco) : '';
@@ -1298,22 +1133,21 @@ window.gerarRelatorio = async function() {
     if (tipoSelecionado === 'fechamento_caixa') {
         let qC = cliente.from('fechamento_caixa').select('*').gte('data_fechamento', dataInicio).lte('data_fechamento', dataFim).order('data_fechamento', { ascending: true });
         if (filtroFunc !== 'todos') qC = qC.eq('responsavel_id', filtroFunc);
-        const { data: dCaixa } = await qC;
+        const { data: dCaixa, error: erroConsulta1 } = await window.todosRegistrosSuiri(qC); if (erroConsulta1) throw erroConsulta1;
         caixasRel = dCaixa || [];
     }
 
     if (tipoSelecionado === 'pedidos') {
-        const { data: todosPedidos } = await cliente.from('pedidos_compra').select('*').order('criado_em', { ascending: false });
+        const { data: todosPedidos, error: erroPedidos } = await window.todosRegistrosSuiri(cliente.from('pedidos_compra').select('*').order('criado_em', { ascending: false }).order('id'));
+        if (erroPedidos) throw erroPedidos;
         const agora = new Date();
         const dataLimite30Dias = new Date(agora);
         dataLimite30Dias.setDate(dataLimite30Dias.getDate() - 30);
-        const limiteStr = diaEmpresa(dataLimite30Dias);
+        const limiteStr = window.dataLocal(dataLimite30Dias);
 
         pedidosRel = (todosPedidos || []).filter(p => {
-            const st = p.status || (p.lido ? 'comprado' : 'pendente');
-            if (st === 'pendente') return true;
-            const dataBase = p.data_comprado || (p.criado_em ? p.criado_em.split('T')[0] : '');
-            return dataBase >= limiteStr;
+            const dataBase = p.data_comprado || window.dataInstanteLocal(p.criado_em);
+            return dataBase >= dataInicio && dataBase <= dataFim;
         });
 
         if (filtroFunc !== 'todos') {
@@ -1324,14 +1158,18 @@ window.gerarRelatorio = async function() {
     if (tipoSelecionado === 'ambos' || tipoSelecionado === 'frequencia' || tipoSelecionado === 'financeiro') {
         let q = cliente.from('livro_ponto').select('*').gte('data_registro', dataInicio).lte('data_registro', dataFim);
         if (filtroFunc !== 'todos') q = q.eq('perfil_id', filtroFunc);
-        const { data } = await q; ponto = data || [];
+        const { data, error: erroConsulta2 } = await window.todosRegistrosSuiri(q); if (erroConsulta2) throw erroConsulta2; ponto = data || [];
     }
 
     if (tipoSelecionado === 'ambos' || tipoSelecionado === 'produtividade') {
         let q = cliente.from('tarefas').select('*').eq('status', 'concluida');
-        const { data } = await q;
-        tarefas = (data || []).filter(t => {
-            const dataFimTarefa = t.hora_fim ? t.hora_fim.split('T')[0] : '';
+        const { data, error: erroConsulta3 } = await window.todosRegistrosSuiri(q); if (erroConsulta3) throw erroConsulta3;
+        const {data:historicoRel,error:erroHistoricoRel}=await window.todosRegistrosSuiri(cliente.from('suiri_historico_tarefas').select('registro').gte('concluida_em',dataInicio+'T00:00:00-03:00').lte('concluida_em',dataFim+'T23:59:59.999-03:00').order('concluida_em').order('id'));
+        if(erroHistoricoRel)throw erroHistoricoRel;
+        const execucoesRel=new Map();
+        [...(data||[]),...(historicoRel||[]).map(h=>h.registro)].forEach(t=>execucoesRel.set(t.id+'|'+t.hora_fim,t));
+        tarefas = [...execucoesRel.values()].filter(t => {
+            const dataFimTarefa = window.dataInstanteLocal(t.hora_fim);
             const noPeriodo = dataFimTarefa >= dataInicio && dataFimTarefa <= dataFim;
             if (!noPeriodo) return false;
 
@@ -1347,17 +1185,18 @@ window.gerarRelatorio = async function() {
     if (tipoSelecionado === 'ambos' || tipoSelecionado === 'financeiro') {
         let qV = cliente.from('vales').select('*').gte('data_vale', dataInicio).lte('data_vale', dataFim);
         if (filtroFunc !== 'todos') qV = qV.eq('perfil_id', filtroFunc);
-        const { data: dV } = await qV; vales = dV || [];
+        const { data: dV, error: erroConsulta4 } = await window.todosRegistrosSuiri(qV); if (erroConsulta4) throw erroConsulta4; vales = dV || [];
 
         let qC = cliente.from('itens_comprados').select('*').gte('data_compra', dataInicio).lte('data_compra', dataFim);
         if (filtroFunc !== 'todos') qC = qC.or(`perfil_id.eq.${filtroFunc},registrado_por.eq.${filtroFunc}`);
-        const { data: dC } = await qC; compras = dC || [];
+        const { data: dC, error: erroConsulta5 } = await window.todosRegistrosSuiri(qC); if (erroConsulta5) throw erroConsulta5; compras = dC || [];
     }
 
     if (filtroSetor && filtroSetor !== 'todos') {
         ponto = ponto.filter(p => mapaPerfis[p.perfil_id]?.setor === filtroSetor);
         vales = vales.filter(v => mapaPerfis[v.perfil_id]?.setor === filtroSetor);
         compras = compras.filter(c => mapaPerfis[c.perfil_id]?.setor === filtroSetor);
+        tarefas = tarefas.filter(t=>mapaPerfis[t.assumido_por]?.setor===filtroSetor || (t.ajudantes||[]).some(id=>mapaPerfis[id]?.setor===filtroSetor));
     }
 
     const valesPendentes = vales.filter(v => !v.pago);
@@ -1405,7 +1244,7 @@ window.gerarRelatorio = async function() {
     if (tipoSelecionado === 'financeiro' || tipoSelecionado === 'ambos') {
         const dataLimite6M = new Date();
         dataLimite6M.setMonth(dataLimite6M.getMonth() - 6);
-        const dataStr6M = diaEmpresa(dataLimite6M);
+        const dataStr6M = window.dataLocal(dataLimite6M);
 
         let qV6 = cliente.from('vales').select('*').gte('data_vale', dataStr6M);
         let qC6 = cliente.from('itens_comprados').select('*').gte('data_compra', dataStr6M);
@@ -1415,7 +1254,8 @@ window.gerarRelatorio = async function() {
             qC6 = qC6.or(`perfil_id.eq.${filtroFunc},registrado_por.eq.${filtroFunc}`);
         }
 
-        const [{ data: vales6M }, { data: compras6M }] = await Promise.all([qV6, qC6]);
+        const [{data:vales6M,error:erroV6},{data:compras6M,error:erroC6}]=await Promise.all([window.todosRegistrosSuiri(qV6),window.todosRegistrosSuiri(qC6)]);
+        if(erroV6||erroC6)throw(erroV6||erroC6);
 
         const mapaMeses = {};
         for (let i = 5; i >= 0; i--) {
@@ -1728,6 +1568,11 @@ window.gerarRelatorio = async function() {
         } else {
             btnWhatsFechamento.classList.add('oculto');
         }
+    }
+    } catch(e) {
+        document.getElementById('area-resultados-relatorio').textContent = 'Relatório não gerado: falha ao consultar os dados. ' + e.message;
+        document.getElementById('btn-imprimir-pdf')?.classList.add('oculto');
+        window.mostrarToast('Não foi possível gerar o relatório: ' + e.message, 'erro');
     }
 };
 

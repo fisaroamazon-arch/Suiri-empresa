@@ -1,0 +1,636 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Suiri — Guia da atualização V4</title><style>body{margin:0;background:#f0f5f3;color:#193238;font:15px/1.75 system-ui,sans-serif}main{max-width:830px;margin:20px auto;padding:24px;background:white;border-radius:22px;box-sizing:border-box}h1{font-size:29px;line-height:1.25}h2{font-size:20px;margin-top:32px}p{overflow-wrap:anywhere}code,pre{background:#edf3f1;border-radius:6px;padding:3px;font-size:13px}pre{padding:15px;overflow:auto}button{background:#125b5b;color:white;border:0;border-radius:12px;padding:13px 18px;font-weight:600;font-size:14px}textarea{width:100%;height:320px;box-sizing:border-box;margin:15px 0;font:12px/1.5 monospace}.sql{border-top:1px solid #ccdcd7;margin-top:25px;padding-top:15px}table{width:100%;border-collapse:collapse;font-size:13px}td{border-bottom:1px solid #ccdcd7;padding:8px 5px}@media(max-width:600px){main{margin:0;padding:20px;border-radius:0}}</style><main><p class="aviso"><b>V4.1 visual:</b> se a V4 já está funcionando, esta mudança exige somente atualizar os arquivos do site. Não execute SQL novamente por causa do visual.</p><p class="aviso"><b>Falhou na conferência da etapa 7?</b> Abra <a href="INSTALAR_SQL_NO_CELULAR.html">o instalador</a> e toque em “Ir direto à etapa 7”. A correção reaproveita os envios e aceita diferenças de recuo e quebra de linha, mantendo a conferência do código.</p><p class="aviso"><a href="INSTALAR_SQL_NO_CELULAR.html"><b>CELULAR: abrir o instalador em sete etapas</b></a>. Use este método se a cópia do SQL grande foi cortada.</p><h1>Suiri Empresas V4 — atualização completa</h1>
+<p>O pacote contém o sistema completo, incluindo arquivos originais, novos módulos, bibliotecas e atualização do banco. A interface depende do SQL desta versão: trocar apenas os arquivos do site não ativa os novos cadastros, recebimentos e exclusões.</p>
+<h2>Como aplicar usando o celular</h2>
+<p>1. Extraia o ZIP. Guarde o arquivo anterior e uma cópia dos dados do banco.</p>
+<p>2. No Chrome, entre em https://supabase.com/dashboard no <b>mesmo projeto que o Suiri já utiliza</b>. Se precisar, ative “Site para computador” no menu do Chrome.</p>
+<p>3. Abra o <b>SQL Editor</b>. Execute <code>banco/00_DIAGNOSTICO.sql</code>, que somente consulta informações. Confira os membros que estão como administradores: o código anterior dava esse cargo a todo novo cadastro. A atualização preserva os cargos existentes para não retirar um acesso legítimo por engano.</p>
+<p>4. No celular, abra <b>INSTALAR_SQL_NO_CELULAR.html</b>. Ele apresenta sete etapas: seis envios pequenos e uma aplicação final. Copie e execute um bloco por vez em uma consulta nova no SQL Editor, apagando o bloco anterior antes de colar o próximo. Avance somente quando aparecer o resultado esperado, sem erro. A última etapa confere se todos os blocos chegaram completos e aplica o mesmo SQL V4 de uma só vez. O arquivo único <code>banco/01_ATUALIZACAO.sql</code> continua disponível para editores que aceitam a cópia completa.</p>
+<p>5. Se houver erro, pare nessa etapa e guarde a mensagem. A atualização é transacional: um erro desfaz a operação inteira. Se aparecerem registros sem empresa ou CNPJs repetidos, eles precisam ser identificados corretamente antes de repetir. O script não escolhe uma empresa aleatória.</p>
+<p>6. Depois do SQL concluído, envie <b>todo o conteúdo da pasta extraída</b> ao repositório do site. <code>index.html</code> precisa ficar na raiz publicada. Inclua <code>vendor</code>, <code>wellknown</code>, <code>.well-known</code> e todos os arquivos <code>app-*.js</code>. Não envie apenas o ZIP ao GitHub Pages.</p>
+<p>7. Abra o site e recarregue. Entre novamente. Se a versão antiga continuar aparecendo, feche o aplicativo instalado e atualize pelo Chrome. Limpar dados do site apaga filas offline locais: confira as pendências antes.</p>
+<p>8. Em <b>Admin</b>, revise os cargos antigos. Use uma empresa e usuários de teste para conferir o fluxo antes de excluir contas importantes.</p>
+<p>A conexão Supabase que veio no projeto foi mantida. Não coloque uma chave <code>service_role</code> no HTML ou JavaScript.</p>
+<h2>Onde estão as funções</h2>
+<table>
+<tr><td>Função</td><td>Caminho</td></tr>
+<tr><td>Tarefas, avisos e ponto</td><td>Missão</td></tr>
+<tr><td>Acompanhamento da equipe</td><td>Equipe, conforme permissão</td></tr>
+<tr><td>Clientes e fornecedores</td><td>Gestão → Clientes e fornecedores</td></tr>
+<tr><td>Vender a um cliente</td><td>Gestão → Nova venda</td></tr>
+<tr><td>Receber uma parte ou quitar</td><td>Gestão → Contas a receber → Registrar recebimento</td></tr>
+<tr><td>Histórico de um cliente</td><td>Gestão → Clientes → Histórico</td></tr>
+<tr><td>Contas a pagar</td><td>Gestão → atalho Contas a pagar</td></tr>
+<tr><td>Cardápio</td><td>Gestão → Cardápio ou Admin → Gerenciar itens</td></tr>
+<tr><td>Importar texto/TXT/CSV</td><td>Cardápio → Importar cardápio por texto ou arquivo</td></tr>
+<tr><td>Alterar cargos</td><td>Admin → escolher membro → Salvar alterações</td></tr>
+<tr><td>Excluir outro membro</td><td>Admin → escolher membro → Excluir este membro</td></tr>
+<tr><td>Excluir seu login</td><td>Ajustes → Excluir minha conta</td></tr>
+<tr><td>Excluir toda a empresa</td><td>Ajustes → Excluir empresa e todos os acessos, somente administrador</td></tr>
+<tr><td>Modo claro/escuro</td><td>Ajustes → Aparência</td></tr>
+<tr><td>Ativar/desativar gestos</td><td>Ajustes → Deslizar entre as telas</td></tr>
+</table>
+<p>As abas continuam na barra inferior. Deslizar para a esquerda abre a próxima aba permitida; para a direita, a anterior. Campos, botões, modais e áreas de rolagem horizontal não iniciam a troca por gesto. No acesso básico aparecem Missão, Perfil e Ajustes.</p>
+<h2>Cadastro por CNPJ</h2>
+<p>Primeiro são informados nome, e-mail e senha de pelo menos oito caracteres. Não há escolha de cargo nem de setor nessa tela. Depois é aberto o CNPJ; o sistema consulta a BrasilAPI e mostra a empresa encontrada para confirmação.</p>
+<p>Na criação da conta, um gatilho do banco vincula a pessoa e reserva o cargo correto, inclusive quando o e-mail ainda precisa de confirmação. A primeira conta criada para um CNPJ sem membros fica como administradora; os seguintes entram como funcionários sem permissões administrativas. Essa decisão acontece no banco e protege contra dois cadastros simultâneos virarem administradores. O setor inicial é Frente e pode ser alterado pela gestão.</p>
+<p>Se o Supabase exigir confirmação de e-mail, o acesso só é liberado depois da confirmação. O cargo da primeira conta já fica reservado, mesmo que outra pessoa confirme o e-mail antes. Em Authentication → URL Configuration, mantenha o endereço publicado do site entre os redirecionamentos permitidos para confirmação e recuperação de senha. Uma conta antiga sem empresa pode usar “Vincular minha conta” na entrada.</p>
+<p>CNPJ público não comprova vínculo empregatício: conforme o fluxo solicitado, quem souber o número pode se cadastrar como membro básico. Não foi acrescentado um convite obrigatório. Administradores podem remover membros indevidos.</p>
+<h2>Clientes, vendas e recebimentos</h2>
+<p>Cadastre o cliente, registre os produtos/serviços, quantidade, preço, data e vencimento. A venda entra como conta a receber; registre o dinheiro recebido separadamente. Pagamentos parciais diminuem o saldo, e a quitação acontece quando o saldo chega a zero. Vencimentos anteriores ao dia atual aparecem em atraso.</p>
+<p>Há filtros por cliente, situação, busca e período da venda. CSV e PDF respeitam esses filtros. O histórico inclui os itens vendidos e os recebimentos. Estornos exigem administrador e motivo; os registros permanecem no histórico. Uma venda só pode ser cancelada depois de estornar seus recebimentos. Arquivar cliente ou fornecedor preserva o histórico.</p>
+<p>O recebimento não é integrado automaticamente ao fechamento de caixa antigo. Registre o caixa conforme o procedimento da empresa; isso evita contar o mesmo dinheiro duas vezes. Este módulo é um controle gerencial de vendas e recebimentos, sem emissão fiscal ou cobrança bancária automática.</p>
+<h2>Cardápio e aprendizado</h2>
+<p>Digite ou envie um TXT/CSV com uma linha por item:</p>
+<pre><code>
+Água mineral; 5,00
+
+Suco de uva - R$ 12,50
+
+Café; 6.00
+
+</code></pre>
+<p>Revise o texto e corrija as linhas indicadas antes de importar. O limite é de 500 itens por envio e 1 MB por arquivo. Não é um importador de PDF, foto ou planilha XLSX. CSVs com cabeçalho devem ter o cabeçalho removido. Itens repetidos no mesmo texto usam a última ocorrência. A opção de atualizar preços existentes fica desmarcada por padrão.</p>
+<p>Novos produtos de vendas e novos itens lançados pela gestão no consumo são aprendidos automaticamente. O aprendizado acrescenta nomes novos; ele não muda silenciosamente os preços existentes. Consumo de funcionário usa o catálogo da própria empresa.</p>
+<p>O cardápio original do Sabor da Costa foi preservado no botão “Carregar cardápio original”. Ele precisa ser revisado e importado na empresa correta; não é mais inserido automaticamente nas empresas de outras pessoas. Os preços preservados são os do ZIP recebido, sem atualização externa.</p>
+<p>As tarefas concluídas mantêm registros de execução. Ao reiniciar uma rotina, o histórico continua disponível para relatórios e cálculo do tempo médio. A estimativa operacional usa as últimas 1.000 execuções carregadas; relatórios e financeiro comercial consultam os dados em páginas para não truncar no primeiro lote do servidor.</p>
+<h2>Exclusões</h2>
+<p>Excluir um membro remove seu login, perfil, ponto, vales, consumo e tarefas autônomas pessoais. Fotos do aplicativo são removidas pela API de arquivos; atribuições e participações nas rotinas são desvinculadas. Vendas, recebimentos, fornecedores, contas a pagar e caixa da empresa permanecem. O administrador pode excluir outro membro, inclusive outro administrador, desde que reste pelo menos um administrador.</p>
+<p>Excluir a própria conta segue a mesma regra. O último administrador precisa promover outra pessoa antes ou escolher excluir toda a empresa.</p>
+<p>Excluir a empresa pede a frase <code>EXCLUIR</code> seguida do CNPJ mostrado. A função apaga os dados do aplicativo daquela empresa e os logins dos membros vinculados. O modelo atual tem uma empresa por login. Dados de outras empresas ficam protegidos. Exclusão de contas precisa de internet.</p>
+<p>A remoção dos arquivos de foto acontece antes da transação do banco. Se houver uma falha posterior, a transação preserva a conta, mas fotos já removidas não são restauradas automaticamente. Arquivos de outros aplicativos/buckets e dependências externas ao ZIP podem exigir tratamento adicional no projeto real; um impedimento é exibido como erro, sem anunciar exclusão bem-sucedida.</p>
+<h2>Offline e instalação</h2>
+<p>Depois de entrar e carregar o sistema com internet, ponto e ações compatíveis podem ser guardados no aparelho e sincronizados ao reconectar. Entrada e saída offline são reconciliadas no mesmo registro. A fila é separada por usuário e empresa; falhas de permissão não são tratadas como sucesso offline. Vendas, recebimentos e exclusões exigem conexão.</p>
+<p>As filas da versão antiga foram preservadas, mas não são enviadas automaticamente: elas não identificavam o dono das ações. Reabrir o aplicativo totalmente offline ainda pode exigir voltar à internet para autenticar/carregar o perfil. Arquivos estáticos podem ser guardados pelo aplicativo instalado; isso não é uma cópia offline completa do banco.</p>
+<p>O convite de instalação aparece quando o navegador disponibiliza essa opção. A instalação do site não habilita notificações push.</p>
+<h2>Limites da validação realizada</h2>
+<p>Foram executados testes de banco PostgreSQL embarcado (PGlite) e testes de integração da interface em DOM simulado (JSDOM), usando dados fictícios. O relatório completo está em <code>ANALISE_E_VALIDACAO.md</code> e os testes reproduzíveis em <code>validacao</code>.</p>
+<p>Não houve alteração no Supabase real, publicação no GitHub, criação de usuários reais ou exclusão real de contas. Não havia sessão administrativa do seu banco nem seu esquema SQL no ZIP. Confirmação de e-mail, políticas/triggers antigos, limpeza real de Storage, câmera, instalação em Android e aparência final no navegador precisam ser conferidos no ambiente publicado. O conteúdo do relatório PDF foi validado; a renderização e o download reais não foram executados nesta sessão.</p>
+<h2>Erro de cópia incompleta no SQL</h2>
+<p>Se aparecer <code>unterminated dollar-quoted string</code>, uma função chegou sem o fechamento completo. Não complete apenas com <code>$$</code>: pode faltar uma parte inteira do código. Abra uma consulta nova e use o instalador em blocos. Ele não altera as funções do aplicativo durante os seis envios; a alteração efetiva só ocorre na etapa final, após conferir a integridade do texto. Se faltar uma parte ou a cópia estiver alterada, a aplicação é recusada.</p><section class="sql"><h2>Copiar diagnóstico (somente leitura)</h2><button type="button" data-copy="sql00">Copiar diagnóstico (somente leitura)</button><p id="msg00" role="status"></p><details><summary>Mostrar o SQL completo</summary><textarea id="sql00" readonly spellcheck="false">-- Somente leitura. Execute no SQL Editor ANTES da atualização.
+select table_name,column_name,data_type from information_schema.columns where table_schema=&#x27;public&#x27;and table_name in(&#x27;empresas&#x27;,&#x27;perfis&#x27;,&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;)order by table_name,ordinal_position;
+select id,cnpj,nome_fantasia from public.empresas;
+select id,nome,empresa_id,is_admin,is_socio,is_gerente from public.perfis order by empresa_id,nome;
+-- O código antigo tornava todo novo cadastro administrador. Revise quem deve manter esse acesso.
+select empresa_id,count(*)filter(where is_admin)as administradores,count(*)as membros from public.perfis group by empresa_id;
+select tablename,policyname,cmd,qual,with_check from pg_policies where schemaname in(&#x27;public&#x27;,&#x27;storage&#x27;);
+select n.nspname,p.proname,p.prosecdef from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=&#x27;public&#x27;and p.prosecdef;
+-- Triggers de Auth anteriores podem interferir no cadastro; não são removidos silenciosamente.
+select t.tgname,pg_get_triggerdef(t.oid)from pg_trigger t where t.tgrelid=&#x27;auth.users&#x27;::regclass and not t.tgisinternal;
+</textarea></details></section><section class="sql"><h2>Copiar atualização completa</h2><p>No celular, use o instalador em sete etapas acima para evitar o corte do SQL.</p><p id="msg01" role="status"></p><details><summary>Mostrar o SQL completo</summary><textarea id="sql01" readonly spellcheck="false">-- Suiri Empresas V4. Execute no SQL Editor do MESMO projeto Supabase do aplicativo.
+-- Faça antes um backup. Operação transacional: qualquer erro desfaz a migração inteira.
+-- Requer as tabelas originais. Aceita empresas.id UUID ou inteiro; nunca adivinha vínculos ambíguos.
+begin;
+create schema if not exists suiri_private;
+revoke all on schema suiri_private from public;
+grant usage on schema suiri_private to authenticated;
+
+do $$ declare t text; tipo text; col text; candidatos text[]; n integer; r record; begin
+ foreach t in array array[&#x27;empresas&#x27;,&#x27;perfis&#x27;,&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;] loop
+  if to_regclass(&#x27;public.&#x27;||t) is null then raise exception &#x27;Tabela original % ausente. Confira o projeto Supabase antes de continuar.&#x27;,t; end if;
+ end loop;
+ select format_type(a.atttypid,a.atttypmod) into tipo from pg_attribute a where a.attrelid=&#x27;public.empresas&#x27;::regclass and a.attname=&#x27;id&#x27;;
+ if tipo not in (&#x27;uuid&#x27;,&#x27;bigint&#x27;,&#x27;integer&#x27;) then raise exception &#x27;Tipo de empresas.id não suportado: %&#x27;,tipo; end if;
+ alter table public.empresas add column if not exists nome_fantasia text;
+ alter table public.empresas add column if not exists razao_social text;
+ alter table public.empresas add column if not exists telefone text;
+ alter table public.empresas add column if not exists endereco text;
+ alter table public.empresas add column if not exists cnpj text;
+ alter table public.perfis add column if not exists is_admin boolean default false;
+ alter table public.perfis add column if not exists is_socio boolean default false;
+ alter table public.perfis add column if not exists is_gerente boolean default false;
+ alter table public.perfis add column if not exists pode_fechar_caixa boolean default false;
+ alter table public.perfis add column if not exists permissoes_socio jsonb default &#x27;[]&#x27;;
+ alter table public.perfis add column if not exists permissoes_gerente jsonb default &#x27;[]&#x27;;
+ alter table public.perfis add column if not exists cargo text default &#x27;staff&#x27;;
+ foreach t in array array[&#x27;perfis&#x27;,&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;] loop
+  execute format(&#x27;alter table public.%I add column if not exists empresa_id %s references public.empresas(id)&#x27;,t,tipo);
+  execute format(&#x27;create index if not exists %I on public.%I(empresa_id)&#x27;,&#x27;suiri_empresa_&#x27;||t,t);
+ end loop;
+ -- Normalize legacy CNPJs, abort on duplicates rather than merge unrelated companies.
+ update public.empresas set cnpj=regexp_replace(upper(cnpj),&#x27;[^A-Z0-9]&#x27;,&#x27;&#x27;,&#x27;g&#x27;);
+ if exists(select 1 from public.empresas group by cnpj having count(*)&gt;1) then raise exception &#x27;CNPJs duplicados em empresas. Resolva no diagnóstico antes de migrar.&#x27;;end if;
+ if exists(select 1 from public.empresas where cnpj is null or cnpj !~ &#x27;^[A-Z0-9]{12}[0-9]{2}$&#x27;) then raise exception &#x27;Empresa sem CNPJ válido. Corrija os dados existentes antes da migração.&#x27;;end if;
+ create unique index if not exists suiri_empresas_cnpj on public.empresas(cnpj);
+ -- Backfill only when ownership can be inferred from the actual author/employee.
+ foreach t in array array[&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;] loop
+  execute format($q$update public.%1$I t set empresa_id=(select p.empresa_id from public.perfis p where p.id::text=any(array[to_jsonb(t)-&gt;&gt;&#x27;perfil_id&#x27;,to_jsonb(t)-&gt;&gt;&#x27;criado_por&#x27;,to_jsonb(t)-&gt;&gt;&#x27;registrado_por&#x27;,to_jsonb(t)-&gt;&gt;&#x27;responsavel_id&#x27;,to_jsonb(t)-&gt;&gt;&#x27;assumido_por&#x27;]) and p.empresa_id is not null limit 1) where t.empresa_id is null and (select count(distinct p.empresa_id) from public.perfis p where p.id::text=any(array[to_jsonb(t)-&gt;&gt;&#x27;perfil_id&#x27;,to_jsonb(t)-&gt;&gt;&#x27;criado_por&#x27;,to_jsonb(t)-&gt;&gt;&#x27;registrado_por&#x27;,to_jsonb(t)-&gt;&gt;&#x27;responsavel_id&#x27;,to_jsonb(t)-&gt;&gt;&#x27;assumido_por&#x27;]) and p.empresa_id is not null)=1$q$,t);
+ end loop;
+ select count(*) into n from public.empresas;
+ if n=1 then
+  foreach t in array array[&#x27;perfis&#x27;,&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;] loop
+   execute format(&#x27;update public.%I set empresa_id=(select id from public.empresas limit 1) where empresa_id is null&#x27;,t);
+  end loop;
+ end if;
+ foreach t in array array[&#x27;perfis&#x27;,&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;] loop
+  execute format(&#x27;select count(*) from public.%I where empresa_id is null&#x27;,t) into n;
+  if n&gt;0 then raise exception &#x27;% contém % registros sem empresa definida. Resolva os vínculos indicados por 00_DIAGNOSTICO.sql e execute novamente.&#x27;,t,n;end if;
+ end loop;
+ foreach t in array array[&#x27;livro_ponto&#x27;,&#x27;tarefas&#x27;,&#x27;itens_comprados&#x27;,&#x27;vales&#x27;,&#x27;fechamento_caixa&#x27;] loop
+  execute format(&#x27;alter table public.%I add column if not exists suiri_operacao_id uuid&#x27;,t);
+  execute format(&#x27;create unique index if not exists %I on public.%I(suiri_operacao_id)&#x27;,&#x27;suiri_operacao_&#x27;||t,t);
+ end loop;
+ -- Use the company&#x27;s real PK type for new tables too.
+ execute format($q$create table if not exists public.suiri_contatos(
+ id uuid primary key default gen_random_uuid(), empresa_id %s not null references public.empresas(id),
+ tipo text not null check(tipo in (&#x27;cliente&#x27;,&#x27;fornecedor&#x27;)), nome text not null check(length(btrim(nome)) between 1 and 180),
+ documento text default &#x27;&#x27;, telefone text default &#x27;&#x27;, email text default &#x27;&#x27;, endereco text default &#x27;&#x27;, observacoes text default &#x27;&#x27;,
+ ativo boolean not null default true, criado_em timestamptz not null default now(), unique(empresa_id,id))$q$,tipo);
+ execute format($q$create table if not exists public.suiri_vendas(
+ id uuid primary key default gen_random_uuid(), empresa_id %s not null references public.empresas(id),
+ contato_id uuid not null, itens jsonb not null check(jsonb_typeof(itens)=&#x27;array&#x27;),
+ total_centavos bigint not null check(total_centavos&gt;0), data_venda date not null, vencimento date not null,
+ observacao text default &#x27;&#x27;, criado_por uuid, criado_em timestamptz not null default now(),
+ operacao_id uuid not null unique, cancelada_em timestamptz, motivo_cancelamento text,
+ unique(empresa_id,id),foreign key(empresa_id,contato_id) references public.suiri_contatos(empresa_id,id))$q$,tipo);
+ execute format($q$create table if not exists public.suiri_recebimentos(
+ id uuid primary key default gen_random_uuid(), empresa_id %s not null references public.empresas(id),
+ venda_id uuid not null, valor_centavos bigint not null check(valor_centavos&gt;0), data_recebimento date not null,
+ forma text not null, observacao text default &#x27;&#x27;, criado_por uuid, criado_em timestamptz not null default now(),
+ operacao_id uuid not null unique, estornado_em timestamptz, estornado_por uuid, motivo_estorno text,
+ foreign key(empresa_id,venda_id) references public.suiri_vendas(empresa_id,id))$q$,tipo);
+ -- Preserve commercial documents when a member&#x27;s Auth account is deleted.
+ for r in select c.conname,cl.relname as tabela,a.attname as coluna from pg_constraint c
+ join pg_class cl on cl.oid=c.conrelid join pg_namespace ns on ns.oid=cl.relnamespace
+ join pg_attribute a on a.attrelid=cl.oid and a.attnum=c.conkey[1]
+ where c.contype=&#x27;f&#x27; and ns.nspname=&#x27;public&#x27; and cardinality(c.conkey)=1
+ and c.confrelid in (&#x27;auth.users&#x27;::regclass,&#x27;public.perfis&#x27;::regclass)
+ and cl.relname=any(array[&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;,&#x27;itens_comprados&#x27;,&#x27;vales&#x27;])
+ and a.attname=any(array[&#x27;criado_por&#x27;,&#x27;registrado_por&#x27;,&#x27;responsavel_id&#x27;,&#x27;assumido_por&#x27;,&#x27;destinado_a&#x27;,&#x27;comprado_por&#x27;]) loop
+  execute format(&#x27;alter table public.%I alter column %I drop not null&#x27;,r.tabela,r.coluna);
+  execute format(&#x27;alter table public.%I drop constraint %I&#x27;,r.tabela,r.conname);
+  execute format(&#x27;alter table public.%I add constraint %I foreign key(%I) references auth.users(id) on delete set null&#x27;,r.tabela,r.conname,r.coluna);
+ end loop;
+end $$;
+
+create or replace function suiri_private.empresa() returns text language sql stable security definer set search_path=&#x27;&#x27; as $$
+ select empresa_id::text from public.perfis where id=auth.uid()
+$$;
+create or replace function suiri_private.permissao(p_chave text) returns boolean language sql stable security definer set search_path=&#x27;&#x27; as $$
+ select coalesce((select is_admin or (is_socio and coalesce(to_jsonb(permissoes_socio),&#x27;[]&#x27;) ? p_chave) or (is_gerente and coalesce(to_jsonb(permissoes_gerente),&#x27;[]&#x27;) ? p_chave) or (p_chave=&#x27;fechar_caixa&#x27; and pode_fechar_caixa) from public.perfis where id=auth.uid() and empresa_id is not null),false)
+$$;
+create or replace function suiri_private.admin() returns boolean language sql stable security definer set search_path=&#x27;&#x27; as $$
+ select coalesce((select is_admin from public.perfis where id=auth.uid() and empresa_id is not null),false)
+$$;
+create or replace function suiri_private.comercial() returns boolean language sql stable security definer set search_path=&#x27;&#x27; as $$
+ select suiri_private.permissao(&#x27;gestao&#x27;) or suiri_private.permissao(&#x27;financeiro&#x27;) or suiri_private.permissao(&#x27;contas&#x27;)
+$$;
+create or replace function suiri_private.cnpj_valido(p_cnpj text) returns boolean language plpgsql immutable set search_path=&#x27;&#x27; as $$
+declare c text:=regexp_replace(upper(p_cnpj),&#x27;[^A-Z0-9]&#x27;,&#x27;&#x27;,&#x27;g&#x27;); soma int; peso int; resto int; dv int; j int; i int;begin
+ if c is null or c !~ &#x27;^[A-Z0-9]{12}[0-9]{2}$&#x27; or c=repeat(substr(c,1,1),14) then return false;end if;
+ for j in 12..13 loop
+  soma:=0;peso:=j-7;
+  for i in 1..j loop soma:=soma+(ascii(substr(c,i,1))-48)*peso;peso:=peso-1;if peso&lt;2 then peso:=9;end if;end loop;
+  resto:=soma%11;dv:=case when resto&lt;2 then 0 else 11-resto end;
+  if substr(c,j+1,1)::int&lt;&gt;dv then return false;end if;
+ end loop;return true;
+end $$;
+
+-- Guard profile mutations: staff cannot promote themselves through the REST API.
+create or replace function suiri_private.proteger_perfil() returns trigger language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare permitidas text[]:=array[&#x27;nome&#x27;,&#x27;telefone_whatsapp&#x27;,&#x27;avatar_url&#x27;]; begin
+ if current_setting(&#x27;suiri.interno&#x27;,true)=&#x27;sim&#x27; then return new;end if;
+ if tg_op=&#x27;INSERT&#x27; then
+  new.is_admin:=false;new.is_socio:=false;new.is_gerente:=false;new.pode_fechar_caixa:=false;
+  new.permissoes_socio:=(select p.permissoes_socio from jsonb_populate_record(null::public.perfis,&#x27;{&quot;permissoes_socio&quot;:[]}&#x27;)p);new.permissoes_gerente:=(select p.permissoes_gerente from jsonb_populate_record(null::public.perfis,&#x27;{&quot;permissoes_gerente&quot;:[]}&#x27;)p);new.cargo:=&#x27;staff&#x27;;
+  return new;
+ end if;
+ if new.id&lt;&gt;old.id or new.empresa_id is distinct from old.empresa_id then raise exception &#x27;Não é permitido transferir a identidade ou a empresa do perfil.&#x27;;end if;
+ if old.is_admin and not coalesce(new.is_admin,false) then
+  perform pg_advisory_xact_lock(hashtext(&#x27;suiri-admin-&#x27;||old.empresa_id::text));
+  if (select count(*) from public.perfis where empresa_id=old.empresa_id and is_admin)&lt;2 then raise exception &#x27;A empresa precisa manter pelo menos um administrador.&#x27;;end if;
+ end if;
+ if suiri_private.admin() then return new;end if;
+ if new.id&lt;&gt;auth.uid() then
+  if suiri_private.permissao(&#x27;setores&#x27;) then permitidas:=permitidas||array[&#x27;setor&#x27;];end if;
+  if suiri_private.permissao(&#x27;financeiro&#x27;) then permitidas:=permitidas||array[&#x27;tipo_contrato&#x27;,&#x27;data_admissao&#x27;,&#x27;salario_base&#x27;,&#x27;valor_diaria&#x27;,&#x27;dias_folga_semana&#x27;];end if;
+  if not (suiri_private.permissao(&#x27;inspecao&#x27;) or suiri_private.permissao(&#x27;setores&#x27;) or suiri_private.permissao(&#x27;financeiro&#x27;)) then raise exception &#x27;Sem permissão para editar este perfil.&#x27;;end if;
+ end if;
+ if (to_jsonb(new)-permitidas) is distinct from (to_jsonb(old)-permitidas) then raise exception &#x27;Alteração de cargo, permissões ou contrato não autorizada.&#x27;;end if;
+ return new;
+end $$;
+drop trigger if exists suiri_proteger_perfil on public.perfis;
+create trigger suiri_proteger_perfil before insert or update on public.perfis for each row execute function suiri_private.proteger_perfil();
+
+-- Atomic onboarding. The client supplies identity data, NEVER the new role.
+create or replace function suiri_private.vincular_usuario(p_usuario uuid,p_cnpj text,p_nome text,p_empresa jsonb) returns jsonb language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare c text:=regexp_replace(upper(p_cnpj),&#x27;[^A-Z0-9]&#x27;,&#x27;&#x27;,&#x27;g&#x27;);eid text;primeiro boolean;reg public.perfis;begin
+ if p_usuario is null or not exists(select 1 from auth.users where id=p_usuario)then raise exception &#x27;Usuário inválido.&#x27;;end if;
+ if not suiri_private.cnpj_valido(c) then raise exception &#x27;CNPJ inválido.&#x27;;end if;
+ if length(btrim(p_nome)) not between 1 and 180 then raise exception &#x27;Nome obrigatório (até 180 caracteres).&#x27;;end if;
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-cnpj-&#x27;||c));
+ -- Lock the same user too: two tabs cannot enroll it into different companies.
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-user-&#x27;||p_usuario::text));
+ select * into reg from public.perfis where id=p_usuario for update;
+ if reg.empresa_id is not null then return jsonb_build_object(&#x27;empresa_id&#x27;,reg.empresa_id,&#x27;is_admin&#x27;,reg.is_admin);end if;
+ select id::text into eid from public.empresas where cnpj=c for update;
+ if eid is null then
+  if length(btrim(coalesce(p_empresa-&gt;&gt;&#x27;nome_fantasia&#x27;,&#x27;&#x27;))) not between 1 and 180 then raise exception &#x27;Nome da empresa obrigatório. Consulte o CNPJ novamente.&#x27;;end if;
+  insert into public.empresas(cnpj,nome_fantasia,razao_social,telefone,endereco) values(c,left(btrim(p_empresa-&gt;&gt;&#x27;nome_fantasia&#x27;),180),left(p_empresa-&gt;&gt;&#x27;razao_social&#x27;,250),left(p_empresa-&gt;&gt;&#x27;telefone&#x27;,40),left(p_empresa-&gt;&gt;&#x27;endereco&#x27;,500)) returning id::text into eid;
+ end if;
+ primeiro:=not exists(select 1 from public.perfis where empresa_id::text=eid);
+ perform set_config(&#x27;suiri.interno&#x27;,&#x27;sim&#x27;,true);
+ if reg.id is null then
+  insert into public.perfis(id,nome,setor,empresa_id,is_admin,is_socio,is_gerente,pode_fechar_caixa,cargo)
+  select p_usuario,btrim(p_nome),&#x27;frente&#x27;,p.empresa_id,primeiro,false,false,primeiro,case when primeiro then &#x27;adm&#x27; else &#x27;staff&#x27; end
+  from jsonb_populate_record(null::public.perfis,jsonb_build_object(&#x27;empresa_id&#x27;,eid))p;
+ else
+  update public.perfis set nome=btrim(p_nome),empresa_id=(select p.empresa_id from jsonb_populate_record(null::public.perfis,jsonb_build_object(&#x27;empresa_id&#x27;,eid))p),is_admin=primeiro,is_socio=false,is_gerente=false,pode_fechar_caixa=primeiro,cargo=case when primeiro then &#x27;adm&#x27; else &#x27;staff&#x27; end,permissoes_socio=default,permissoes_gerente=default where id=p_usuario;
+ end if;
+ perform set_config(&#x27;suiri.interno&#x27;,&#x27;nao&#x27;,true);
+ return jsonb_build_object(&#x27;empresa_id&#x27;,eid,&#x27;is_admin&#x27;,primeiro);
+end $$;
+create or replace function suiri_private.vincular(p_cnpj text,p_nome text,p_empresa jsonb)returns jsonb language plpgsql security definer set search_path=&#x27;&#x27;as $$begin
+ if auth.uid()is null then raise exception &#x27;Entre na conta e confirme o e-mail antes de vincular a empresa.&#x27;;end if;
+ return suiri_private.vincular_usuario(auth.uid(),p_cnpj,p_nome,p_empresa);
+end $$;
+-- Reserve the first account&#x27;s administrator role at actual Auth signup, even when email confirmation is pending.
+create or replace function suiri_private.cadastro_auth()returns trigger language plpgsql security definer set search_path=&#x27;&#x27;as $$begin
+ if new.raw_user_meta_data-&gt;&gt;&#x27;suiri_cnpj&#x27; is not null then
+  perform suiri_private.vincular_usuario(new.id,new.raw_user_meta_data-&gt;&gt;&#x27;suiri_cnpj&#x27;,coalesce(new.raw_user_meta_data-&gt;&gt;&#x27;nome&#x27;,&#x27;Colaborador&#x27;),coalesce(new.raw_user_meta_data-&gt;&#x27;suiri_empresa&#x27;,&#x27;{}&#x27;));
+ end if;return new;
+end $$;
+drop trigger if exists zz_suiri_cadastro_auth on auth.users;
+create trigger zz_suiri_cadastro_auth after insert on auth.users for each row execute function suiri_private.cadastro_auth();
+create or replace function public.suiri_vincular_empresa(p_cnpj text,p_nome text,p_empresa jsonb default &#x27;{}&#x27;) returns jsonb language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.vincular(p_cnpj,p_nome,p_empresa)$$;
+
+-- Reference integrity in original tables even if their legacy foreign keys are absent.
+create or replace function suiri_private.proteger_registro() returns trigger language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare j jsonb:=to_jsonb(new);o jsonb; col text; ref text; p jsonb; permitidas text[];begin
+ if current_setting(&#x27;suiri.interno&#x27;,true)=&#x27;sim&#x27; then return new;end if;
+ if j-&gt;&gt;&#x27;empresa_id&#x27; is null or j-&gt;&gt;&#x27;empresa_id&#x27; is distinct from suiri_private.empresa() then raise exception &#x27;Registro fora da empresa da sessão.&#x27;;end if;
+ if tg_op=&#x27;UPDATE&#x27; and (j-&gt;&gt;&#x27;empresa_id&#x27; is distinct from to_jsonb(old)-&gt;&gt;&#x27;empresa_id&#x27; or j-&gt;&gt;&#x27;id&#x27; is distinct from to_jsonb(old)-&gt;&gt;&#x27;id&#x27;) then raise exception &#x27;A identidade e a empresa do registro não podem mudar.&#x27;;end if;
+ foreach col in array array[&#x27;perfil_id&#x27;,&#x27;criado_por&#x27;,&#x27;registrado_por&#x27;,&#x27;responsavel_id&#x27;,&#x27;assumido_por&#x27;,&#x27;destinado_a&#x27;,&#x27;destinatario_id&#x27;] loop
+  ref:=j-&gt;&gt;col;
+  if ref is not null and ref&lt;&gt;&#x27;&#x27; and not exists(select 1 from public.perfis where id::text=ref and empresa_id::text=j-&gt;&gt;&#x27;empresa_id&#x27;) then raise exception &#x27;O membro de % não pertence à empresa.&#x27;,col;end if;
+ end loop;
+ if jsonb_typeof(j-&gt;&#x27;ajudantes&#x27;)=&#x27;array&#x27; and exists(select 1 from jsonb_array_elements_text(j-&gt;&#x27;ajudantes&#x27;)x where not exists(select 1 from public.perfis p where p.id::text=x and p.empresa_id::text=j-&gt;&gt;&#x27;empresa_id&#x27;)) then raise exception &#x27;Ajudante de outra empresa.&#x27;;end if;
+ if suiri_private.admin() then return new;end if;
+ if tg_table_name=&#x27;livro_ponto&#x27; and not suiri_private.permissao(&#x27;ponto&#x27;) then
+  if (j-&gt;&gt;&#x27;perfil_id&#x27;)is distinct from auth.uid()::text then raise exception &#x27;Só pode registrar o próprio ponto.&#x27;;end if;
+  if tg_op=&#x27;INSERT&#x27; and coalesce(j-&gt;&gt;&#x27;status_turno&#x27;,&#x27;presente&#x27;) not in (&#x27;presente&#x27;,&#x27;folga&#x27;) then raise exception &#x27;Status de ponto não permitido.&#x27;;end if;
+  if tg_op=&#x27;UPDATE&#x27; then
+   o:=to_jsonb(old);if (j-array[&#x27;horario_saida&#x27;,&#x27;status_turno&#x27;]) is distinct from(o-array[&#x27;horario_saida&#x27;,&#x27;status_turno&#x27;]) or o-&gt;&gt;&#x27;horario_saida&#x27; is not null or j-&gt;&gt;&#x27;status_turno&#x27; not in (&#x27;presente&#x27;,&#x27;aguardando_aprovacao_diaria&#x27;) then raise exception &#x27;Somente o encerramento do seu turno é permitido.&#x27;;end if;
+  end if;
+ elsif tg_table_name=&#x27;itens_comprados&#x27; and not suiri_private.permissao(&#x27;financeiro&#x27;) then
+  if tg_op&lt;&gt;&#x27;INSERT&#x27; or (j-&gt;&gt;&#x27;perfil_id&#x27;)is distinct from auth.uid()::text or (j-&gt;&gt;&#x27;registrado_por&#x27;)is distinct from auth.uid()::text then raise exception &#x27;Consumo permitido apenas no próprio perfil.&#x27;;end if;
+  if coalesce((j-&gt;&gt;&#x27;porcentagem_desconto&#x27;)::numeric,-1)&lt;&gt;30 or coalesce((j-&gt;&gt;&#x27;valor_unitario&#x27;)::numeric,0)&lt;=0 or abs((j-&gt;&gt;&#x27;valor_final&#x27;)::numeric-round((j-&gt;&gt;&#x27;valor_unitario&#x27;)::numeric*0.70,2))&gt;0.01 then raise exception &#x27;Desconto ou valor de consumo inválido.&#x27;;end if;
+ elsif tg_table_name=&#x27;tarefas&#x27; and not suiri_private.permissao(&#x27;tarefas&#x27;) then
+  if tg_op=&#x27;INSERT&#x27; then
+   if not coalesce((j-&gt;&gt;&#x27;autonoma&#x27;)::boolean,false) or (j-&gt;&gt;&#x27;criado_por&#x27;)is distinct from auth.uid()::text or (j-&gt;&gt;&#x27;assumido_por&#x27;)is distinct from auth.uid()::text or coalesce((j-&gt;&gt;&#x27;recorrente&#x27;)::boolean,false) then raise exception &#x27;Só pode criar sua própria tarefa autônoma.&#x27;;end if;
+  else
+   o:=to_jsonb(old);permitidas:=array[&#x27;status&#x27;,&#x27;hora_inicio&#x27;,&#x27;hora_fim&#x27;,&#x27;assumido_por&#x27;,&#x27;ajudantes&#x27;,&#x27;subitens&#x27;,&#x27;aguardando_aprovacao&#x27;,&#x27;ultimo_reinicio&#x27;];
+   if (j-permitidas) is distinct from (o-permitidas) then raise exception &#x27;Não pode editar a definição desta tarefa.&#x27;;end if;
+   if coalesce(j-&gt;&gt;&#x27;status&#x27;,&#x27;&#x27;) not in (&#x27;pendente&#x27;,&#x27;em_andamento&#x27;,&#x27;concluida&#x27;,&#x27;aguardando_aprovacao&#x27;) then raise exception &#x27;Status da tarefa inválido.&#x27;;end if;
+   if o-&gt;&gt;&#x27;assumido_por&#x27; is not null and o-&gt;&gt;&#x27;assumido_por&#x27;&lt;&gt;auth.uid()::text and j-&gt;&gt;&#x27;assumido_por&#x27; is distinct from o-&gt;&gt;&#x27;assumido_por&#x27; then raise exception &#x27;Não pode assumir a tarefa de outra pessoa.&#x27;;end if;
+   if j-&gt;&gt;&#x27;assumido_por&#x27; is distinct from o-&gt;&gt;&#x27;assumido_por&#x27; and (j-&gt;&gt;&#x27;assumido_por&#x27;)is distinct from auth.uid()::text then raise exception &#x27;Não pode transferir a execução.&#x27;;end if;
+   if j-&gt;&gt;&#x27;status&#x27; is distinct from o-&gt;&gt;&#x27;status&#x27; and (j-&gt;&gt;&#x27;assumido_por&#x27;)is distinct from auth.uid()::text then raise exception &#x27;Só o responsável pode mudar o status.&#x27;;end if;
+   if j-&gt;&gt;&#x27;ultimo_reinicio&#x27; is distinct from o-&gt;&gt;&#x27;ultimo_reinicio&#x27; and (j-&gt;&gt;&#x27;status&#x27;&lt;&gt;&#x27;concluida&#x27; or j-&gt;&gt;&#x27;ultimo_reinicio&#x27; is distinct from ((now()at time zone &#x27;America/Sao_Paulo&#x27;)::date)::text)then raise exception &#x27;Data de conclusão inválida.&#x27;;end if;
+   if (coalesce(j-&gt;&#x27;ajudantes&#x27;,&#x27;[]&#x27;)-auth.uid()::text)is distinct from(coalesce(o-&gt;&#x27;ajudantes&#x27;,&#x27;[]&#x27;)-auth.uid()::text)then raise exception &#x27;Só pode alterar sua própria participação como ajudante.&#x27;;end if;
+   if (j-array[&#x27;ajudantes&#x27;,&#x27;subitens&#x27;])is distinct from(o-array[&#x27;ajudantes&#x27;,&#x27;subitens&#x27;])and(j-&gt;&gt;&#x27;assumido_por&#x27;)is distinct from auth.uid()::text then raise exception &#x27;Só o responsável pode alterar a execução.&#x27;;end if;
+   if j-&gt;&#x27;subitens&#x27; is distinct from o-&gt;&#x27;subitens&#x27; then
+    if (j-&gt;&gt;&#x27;assumido_por&#x27;)is distinct from auth.uid()::text and not coalesce(j-&gt;&#x27;ajudantes&#x27;,&#x27;[]&#x27;)?auth.uid()::text then raise exception &#x27;Entre na tarefa antes de marcar subitens.&#x27;;end if;
+    if jsonb_array_length(coalesce(j-&gt;&#x27;subitens&#x27;,&#x27;[]&#x27;))&lt;&gt;jsonb_array_length(coalesce(o-&gt;&#x27;subitens&#x27;,&#x27;[]&#x27;))then raise exception &#x27;Não pode adicionar ou excluir subitens.&#x27;;end if;
+    if exists(select 1 from jsonb_array_elements(coalesce(j-&gt;&#x27;subitens&#x27;,&#x27;[]&#x27;))with ordinality as ns(item,pos)join jsonb_array_elements(coalesce(o-&gt;&#x27;subitens&#x27;,&#x27;[]&#x27;))with ordinality as os(item,pos)using(pos)where(ns.item-array[&#x27;concluido&#x27;,&#x27;feito_por&#x27;])is distinct from(os.item-array[&#x27;concluido&#x27;,&#x27;feito_por&#x27;])or(ns.item is distinct from os.item and coalesce(ns.item-&gt;&gt;&#x27;feito_por&#x27;,auth.uid()::text)&lt;&gt;auth.uid()::text))then raise exception &#x27;Subitem ou responsável inválido.&#x27;;end if;
+   end if;
+   if j-&gt;&gt;&#x27;status&#x27;=&#x27;concluida&#x27; and coalesce((j-&gt;&gt;&#x27;autonoma&#x27;)::boolean,false) then raise exception &#x27;Tarefa autônoma precisa de aprovação da gestão.&#x27;;end if;
+  end if;
+ elsif tg_table_name=&#x27;avisos&#x27; and not suiri_private.permissao(&#x27;avisos&#x27;) then
+  if tg_op=&#x27;UPDATE&#x27; then raise exception &#x27;Use a ação de confirmar leitura.&#x27;;end if;
+  if (j-&gt;&gt;&#x27;criado_por&#x27;)is distinct from auth.uid()::text then raise exception &#x27;Autor do aviso inválido.&#x27;;end if;
+ end if;
+ return new;
+end $$;
+
+-- Replace permissive legacy policies; tenant isolation must not be bypassed by an old OR policy.
+do $$declare t text;r record;tipo text;ler text;escrever text;inserir text;apagar text;begin
+ select format_type(atttypid,atttypmod) into tipo from pg_attribute where attrelid=&#x27;public.empresas&#x27;::regclass and attname=&#x27;id&#x27;;
+ foreach t in array array[&#x27;empresas&#x27;,&#x27;perfis&#x27;,&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;,&#x27;suiri_contatos&#x27;,&#x27;suiri_vendas&#x27;,&#x27;suiri_recebimentos&#x27;] loop
+  for r in select policyname from pg_policies where schemaname=&#x27;public&#x27; and tablename=t loop execute format(&#x27;drop policy %I on public.%I&#x27;,r.policyname,t);end loop;
+  execute format(&#x27;alter table public.%I enable row level security&#x27;,t);
+  execute format(&#x27;revoke all on public.%I from anon&#x27;,t);
+  execute format(&#x27;grant select,insert,update,delete on public.%I to authenticated&#x27;,t);
+  if t=&#x27;empresas&#x27; then
+   create policy suiri_ler on public.empresas for select to authenticated using(id::text=suiri_private.empresa());
+   create policy suiri_alterar on public.empresas for update to authenticated using(id::text=suiri_private.empresa() and suiri_private.admin()) with check(id::text=suiri_private.empresa() and suiri_private.admin());
+   continue;
+  end if;
+  if t=&#x27;perfis&#x27; then
+   create policy suiri_ler on public.perfis for select to authenticated using(id=auth.uid() or (empresa_id::text=suiri_private.empresa() and (suiri_private.admin() or suiri_private.permissao(&#x27;inspecao&#x27;) or suiri_private.permissao(&#x27;financeiro&#x27;) or suiri_private.permissao(&#x27;relatorios&#x27;) or suiri_private.permissao(&#x27;ponto&#x27;))));
+   create policy suiri_alterar on public.perfis for update to authenticated using(empresa_id::text=suiri_private.empresa() and (id=auth.uid() or suiri_private.admin() or suiri_private.permissao(&#x27;inspecao&#x27;) or suiri_private.permissao(&#x27;setores&#x27;) or suiri_private.permissao(&#x27;financeiro&#x27;))) with check(empresa_id::text=suiri_private.empresa());
+   continue;
+  end if;
+  execute format(&#x27;alter table public.%I alter column empresa_id set default (suiri_private.empresa())::%s&#x27;,t,tipo);
+  execute format(&#x27;create index if not exists %I on public.%I(empresa_id)&#x27;,&#x27;suiri_empresa_&#x27;||t,t);
+  ler:=&#x27;true&#x27;;escrever:=&#x27;false&#x27;;inserir:=&#x27;false&#x27;;apagar:=&#x27;false&#x27;;
+  case t
+   when &#x27;suiri_contatos&#x27; then ler:=&#x27;suiri_private.comercial()&#x27;;escrever:=ler;inserir:=ler;
+   when &#x27;suiri_vendas&#x27;,&#x27;suiri_recebimentos&#x27; then ler:=&#x27;suiri_private.comercial()&#x27;;
+   when &#x27;contas_pagar&#x27; then ler:=&#x27;suiri_private.permissao(&#x27;&#x27;contas&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;gestao&#x27;&#x27;)&#x27;;escrever:=ler;inserir:=ler;apagar:=ler;
+   when &#x27;fechamento_caixa&#x27; then ler:=&#x27;suiri_private.permissao(&#x27;&#x27;fechar_caixa&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;relatorios&#x27;&#x27;)&#x27;;inserir:=&#x27;suiri_private.permissao(&#x27;&#x27;fechar_caixa&#x27;&#x27;)&#x27;;apagar:=&#x27;suiri_private.admin()&#x27;;
+   when &#x27;cardapio_consumo&#x27; then escrever:=&#x27;suiri_private.permissao(&#x27;&#x27;compras&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;gestao&#x27;&#x27;)&#x27;;inserir:=escrever;apagar:=escrever;
+   when &#x27;pedidos_compra&#x27; then escrever:=&#x27;suiri_private.permissao(&#x27;&#x27;compras&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;gestao&#x27;&#x27;)&#x27;;inserir:=&#x27;criado_por=auth.uid()&#x27;;apagar:=escrever;
+   when &#x27;vales&#x27; then ler:=&#x27;perfil_id=auth.uid() or suiri_private.permissao(&#x27;&#x27;financeiro&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;relatorios&#x27;&#x27;)&#x27;;escrever:=&#x27;suiri_private.permissao(&#x27;&#x27;financeiro&#x27;&#x27;)&#x27;;inserir:=escrever;apagar:=escrever;
+   when &#x27;itens_comprados&#x27; then ler:=&#x27;perfil_id=auth.uid() or suiri_private.permissao(&#x27;&#x27;financeiro&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;relatorios&#x27;&#x27;)&#x27;;escrever:=&#x27;suiri_private.permissao(&#x27;&#x27;financeiro&#x27;&#x27;)&#x27;;inserir:=&#x27;perfil_id=auth.uid() or suiri_private.permissao(&#x27;&#x27;financeiro&#x27;&#x27;)&#x27;;apagar:=escrever;
+   when &#x27;livro_ponto&#x27; then ler:=&#x27;perfil_id=auth.uid() or suiri_private.permissao(&#x27;&#x27;ponto&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;inspecao&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;financeiro&#x27;&#x27;) or suiri_private.permissao(&#x27;&#x27;relatorios&#x27;&#x27;)&#x27;;escrever:=&#x27;perfil_id=auth.uid() or suiri_private.permissao(&#x27;&#x27;ponto&#x27;&#x27;)&#x27;;inserir:=escrever;apagar:=&#x27;suiri_private.permissao(&#x27;&#x27;ponto&#x27;&#x27;)&#x27;;
+   when &#x27;tarefas&#x27; then escrever:=&#x27;true&#x27;;inserir:=&#x27;true&#x27;;apagar:=&#x27;suiri_private.permissao(&#x27;&#x27;tarefas&#x27;&#x27;)&#x27;;
+   when &#x27;avisos&#x27; then ler:=&#x27;(destinado_a is null or destinado_a=auth.uid() or criado_por=auth.uid() or suiri_private.permissao(&#x27;&#x27;avisos&#x27;&#x27;))&#x27;;inserir:=&#x27;criado_por=auth.uid()&#x27;;escrever:=&#x27;suiri_private.permissao(&#x27;&#x27;avisos&#x27;&#x27;)&#x27;;apagar:=escrever;
+  end case;
+  execute format(&#x27;create policy suiri_ler on public.%I for select to authenticated using(empresa_id::text=suiri_private.empresa() and (%s))&#x27;,t,ler);
+  execute format(&#x27;create policy suiri_inserir on public.%I for insert to authenticated with check(empresa_id::text=suiri_private.empresa() and (%s))&#x27;,t,inserir);
+  execute format(&#x27;create policy suiri_alterar on public.%I for update to authenticated using(empresa_id::text=suiri_private.empresa() and (%s)) with check(empresa_id::text=suiri_private.empresa() and (%s))&#x27;,t,escrever,escrever);
+  execute format(&#x27;create policy suiri_apagar on public.%I for delete to authenticated using(empresa_id::text=suiri_private.empresa() and (%s))&#x27;,t,apagar);
+  if t not like &#x27;suiri_%&#x27; then
+   execute format(&#x27;drop trigger if exists suiri_proteger_registro on public.%I&#x27;,t);
+   execute format(&#x27;create trigger suiri_proteger_registro before insert or update on public.%I for each row execute function suiri_private.proteger_registro()&#x27;,t);
+  end if;
+ end loop;
+end $$;
+
+-- A limited team directory avoids exposing contracts/salaries to staff.
+create or replace function suiri_private.equipe() returns jsonb language sql stable security definer set search_path=&#x27;&#x27; as $$
+ select coalesce(jsonb_agg(jsonb_build_object(&#x27;id&#x27;,id,&#x27;nome&#x27;,nome,&#x27;setor&#x27;,setor,&#x27;avatar_url&#x27;,to_jsonb(p)-&gt;&gt;&#x27;avatar_url&#x27;,&#x27;is_admin&#x27;,is_admin,&#x27;is_socio&#x27;,is_socio,&#x27;is_gerente&#x27;,is_gerente)),&#x27;[]&#x27;) from public.perfis p where empresa_id::text=suiri_private.empresa()
+$$;
+create or replace function public.suiri_equipe_basica() returns jsonb language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.equipe()$$;
+
+-- Atomic read acknowledgments avoid concurrent readers overwriting one another.
+create or replace function suiri_private.ler_aviso(p_id text) returns void language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare r public.avisos;j jsonb;begin
+ select * into r from public.avisos where id::text=p_id and empresa_id::text=suiri_private.empresa() and (destinado_a is null or destinado_a=auth.uid() or criado_por=auth.uid() or suiri_private.permissao(&#x27;avisos&#x27;)) for update;
+ if not found then raise exception &#x27;Aviso não encontrado.&#x27;;end if;
+ j:=coalesce(to_jsonb(r.lidos_por),&#x27;[]&#x27;);
+ if not j ? auth.uid()::text then
+  j:=j||jsonb_build_array(auth.uid()::text);perform set_config(&#x27;suiri.interno&#x27;,&#x27;sim&#x27;,true);
+  update public.avisos set lidos_por=(select p.lidos_por from jsonb_populate_record(null::public.avisos,jsonb_build_object(&#x27;lidos_por&#x27;,j))p)where id=r.id;
+  perform set_config(&#x27;suiri.interno&#x27;,&#x27;nao&#x27;,true);
+ end if;
+end $$;
+create or replace function public.suiri_ler_aviso(p_id text) returns void language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.ler_aviso(p_id)$$;
+
+-- Catalog: explicit bulk price updates, automatic learning only adds new names.
+create or replace function suiri_private.importar(p_itens jsonb,p_atualizar boolean) returns integer language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare i jsonb;n text;v numeric;contador int:=0;begin
+ if not(suiri_private.permissao(&#x27;compras&#x27;) or suiri_private.permissao(&#x27;gestao&#x27;))then raise exception &#x27;Sem permissão para gerir o catálogo.&#x27;;end if;
+ if jsonb_typeof(p_itens) is distinct from &#x27;array&#x27; or jsonb_array_length(p_itens) not between 1 and 500 then raise exception &#x27;Envie de 1 a 500 itens.&#x27;;end if;
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-catalogo-&#x27;||suiri_private.empresa()));
+ for i in select value from jsonb_array_elements(p_itens)loop
+  n:=btrim(i-&gt;&gt;&#x27;nome_item&#x27;);v:=(i-&gt;&gt;&#x27;valor_padrao&#x27;)::numeric;
+  if n is null or length(n) not between 1 and 180 or v is null or v&lt;=0 or v&gt;999999999.99 or v&lt;&gt;round(v,2)then raise exception &#x27;Nome ou preço de item inválido.&#x27;;end if;
+  if exists(select 1 from public.cardapio_consumo where empresa_id::text=suiri_private.empresa() and lower(btrim(nome_item))=lower(n))then
+   if p_atualizar then update public.cardapio_consumo set valor_padrao=v,ativo=true where empresa_id::text=suiri_private.empresa() and lower(btrim(nome_item))=lower(n);end if;
+  else
+   insert into public.cardapio_consumo(empresa_id,nome_item,valor_padrao,ativo)select p.empresa_id,n,v,true from jsonb_populate_record(null::public.cardapio_consumo,jsonb_build_object(&#x27;empresa_id&#x27;,suiri_private.empresa()))p;
+  end if;contador:=contador+1;
+ end loop;return contador;
+end $$;
+create or replace function public.suiri_importar_cardapio(p_itens jsonb,p_atualizar boolean default false) returns integer language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.importar(p_itens,p_atualizar)$$;
+
+create or replace function suiri_private.venda(p_contato uuid,p_itens jsonb,p_data date,p_vencimento date,p_observacao text,p_operacao uuid)returns uuid language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare i jsonb;total numeric:=0;q numeric;v numeric;n text;vendaid uuid;cat jsonb:=&#x27;[]&#x27;;reg public.suiri_vendas;begin
+ if not suiri_private.comercial()then raise exception &#x27;Sem acesso ao comercial.&#x27;;end if;
+ if p_operacao is null then raise exception &#x27;Identificador da operação obrigatório.&#x27;;end if;
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-op-&#x27;||p_operacao::text));
+ select * into reg from public.suiri_vendas where operacao_id=p_operacao;
+ if found then
+  if reg.empresa_id::text&lt;&gt;suiri_private.empresa()then raise exception &#x27;Operação de outra empresa.&#x27;;end if;
+  if reg.contato_id is distinct from p_contato or reg.itens is distinct from p_itens or reg.data_venda is distinct from p_data or reg.vencimento is distinct from p_vencimento or coalesce(reg.observacao,&#x27;&#x27;)is distinct from coalesce(left(p_observacao,2000),&#x27;&#x27;)then raise exception &#x27;Esta operação já foi registrada com outros dados. Atualize o histórico antes de criar outra venda.&#x27;;end if;return reg.id;
+ end if;
+ if p_data is null or p_vencimento is null then raise exception &#x27;Datas obrigatórias.&#x27;;end if;
+ if p_data&gt;(now()at time zone &#x27;America/Sao_Paulo&#x27;)::date or p_vencimento&lt;p_data then raise exception &#x27;Confira as datas: venda futura ou vencimento anterior à venda.&#x27;;end if;
+ if not exists(select 1 from public.suiri_contatos where id=p_contato and empresa_id::text=suiri_private.empresa() and tipo=&#x27;cliente&#x27; and ativo)then raise exception &#x27;Selecione um cliente ativo desta empresa.&#x27;;end if;
+ if jsonb_typeof(p_itens) is distinct from &#x27;array&#x27; or jsonb_array_length(p_itens) not between 1 and 200 then raise exception &#x27;A venda precisa de 1 a 200 itens.&#x27;;end if;
+ for i in select value from jsonb_array_elements(p_itens)loop
+  n:=btrim(i-&gt;&gt;&#x27;descricao&#x27;);q:=(i-&gt;&gt;&#x27;quantidade&#x27;)::numeric;v:=(i-&gt;&gt;&#x27;valor_centavos&#x27;)::numeric;
+  if n is null or length(n) not between 1 and 180 or q is null or q&lt;=0 or q&gt;1000000 or q&lt;&gt;round(q,3) or v is null or v&lt;=0 or v&lt;&gt;trunc(v)or v&gt;99999999999 then raise exception &#x27;Descrição, quantidade ou preço inválido.&#x27;;end if;
+  total:=total+round(q*v);cat:=cat||jsonb_build_array(jsonb_build_object(&#x27;nome_item&#x27;,n,&#x27;valor_padrao&#x27;,v/100));
+ end loop;
+ if total&lt;=0 or total&gt;99999999999999 then raise exception &#x27;Total da venda fora do limite.&#x27;;end if;
+ insert into public.suiri_vendas(empresa_id,contato_id,itens,total_centavos,data_venda,vencimento,observacao,criado_por,operacao_id)
+ select p.empresa_id,p_contato,p_itens,total::bigint,p_data,p_vencimento,left(p_observacao,2000),auth.uid(),p_operacao from jsonb_populate_record(null::public.suiri_vendas,jsonb_build_object(&#x27;empresa_id&#x27;,suiri_private.empresa()))p returning id into vendaid;
+ -- Learning does not require catalog-management permission but can only add validated items from an authorized sale.
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-catalogo-&#x27;||suiri_private.empresa()));
+ for i in select value from jsonb_array_elements(cat) loop
+  if not exists(select 1 from public.cardapio_consumo where empresa_id::text=suiri_private.empresa() and lower(btrim(nome_item))=lower(i-&gt;&gt;&#x27;nome_item&#x27;))then
+   insert into public.cardapio_consumo(empresa_id,nome_item,valor_padrao,ativo)select p.empresa_id,i-&gt;&gt;&#x27;nome_item&#x27;,(i-&gt;&gt;&#x27;valor_padrao&#x27;)::numeric,true from jsonb_populate_record(null::public.cardapio_consumo,jsonb_build_object(&#x27;empresa_id&#x27;,suiri_private.empresa()))p;
+  end if;
+ end loop;return vendaid;
+end $$;
+create or replace function public.suiri_registrar_venda(p_contato uuid,p_itens jsonb,p_data date,p_vencimento date,p_observacao text,p_operacao uuid)returns uuid language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.venda(p_contato,p_itens,p_data,p_vencimento,p_observacao,p_operacao)$$;
+
+create or replace function suiri_private.receber(p_venda uuid,p_valor bigint,p_data date,p_forma text,p_observacao text,p_operacao uuid)returns uuid language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare v public.suiri_vendas;r public.suiri_recebimentos;saldo bigint;rid uuid;begin
+ if not suiri_private.comercial()then raise exception &#x27;Sem acesso ao comercial.&#x27;;end if;
+ if p_operacao is null then raise exception &#x27;Identificador da operação obrigatório.&#x27;;end if;
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-op-&#x27;||p_operacao::text));
+ select * into r from public.suiri_recebimentos where operacao_id=p_operacao;
+ if found then if r.empresa_id::text&lt;&gt;suiri_private.empresa()then raise exception &#x27;Operação de outra empresa.&#x27;;end if;
+ if r.venda_id is distinct from p_venda or r.valor_centavos is distinct from p_valor or r.data_recebimento is distinct from p_data or r.forma is distinct from p_forma or coalesce(r.observacao,&#x27;&#x27;)is distinct from coalesce(left(p_observacao,1000),&#x27;&#x27;)then raise exception &#x27;Esta operação já foi registrada com outros dados. Atualize o histórico antes de registrar outro recebimento.&#x27;;end if;return r.id;end if;
+ select * into v from public.suiri_vendas where id=p_venda and empresa_id::text=suiri_private.empresa()for update;
+ if not found or v.cancelada_em is not null then raise exception &#x27;Venda não encontrada ou cancelada.&#x27;;end if;
+ select v.total_centavos-coalesce(sum(valor_centavos)filter(where estornado_em is null),0)into saldo from public.suiri_recebimentos where venda_id=v.id;
+ if p_valor is null or p_valor&lt;=0 or p_valor&gt;saldo then raise exception &#x27;O recebimento deve ser positivo e não pode superar o saldo (% centavos).&#x27;,saldo;end if;
+ if p_data is null or p_data&lt;v.data_venda or p_data&gt;(now()at time zone &#x27;America/Sao_Paulo&#x27;)::date then raise exception &#x27;Data de recebimento inválida.&#x27;;end if;
+ if p_forma is null or p_forma not in (&#x27;Pix&#x27;,&#x27;Dinheiro&#x27;,&#x27;Cartão&#x27;,&#x27;Transferência&#x27;,&#x27;Boleto&#x27;,&#x27;Outro&#x27;)then raise exception &#x27;Forma de recebimento inválida.&#x27;;end if;
+ insert into public.suiri_recebimentos(empresa_id,venda_id,valor_centavos,data_recebimento,forma,observacao,criado_por,operacao_id)values(v.empresa_id,v.id,p_valor,p_data,p_forma,left(p_observacao,1000),auth.uid(),p_operacao)returning id into rid;return rid;
+end $$;
+create or replace function public.suiri_receber_venda(p_venda uuid,p_valor bigint,p_data date,p_forma text,p_observacao text,p_operacao uuid)returns uuid language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.receber(p_venda,p_valor,p_data,p_forma,p_observacao,p_operacao)$$;
+
+create or replace function suiri_private.estornar(p_id uuid,p_motivo text)returns void language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare r public.suiri_recebimentos;begin
+ if not suiri_private.admin()then raise exception &#x27;Apenas administradores podem estornar.&#x27;;end if;
+ if p_motivo is null or length(btrim(p_motivo))not between 1 and 1000 then raise exception &#x27;Informe o motivo (até 1000 caracteres).&#x27;;end if;
+ select * into r from public.suiri_recebimentos where id=p_id and empresa_id::text=suiri_private.empresa();
+ if not found then raise exception &#x27;Recebimento não encontrado.&#x27;;end if;
+ perform 1 from public.suiri_vendas where id=r.venda_id for update;
+ update public.suiri_recebimentos set estornado_em=now(),estornado_por=auth.uid(),motivo_estorno=p_motivo where id=p_id and estornado_em is null;
+end $$;
+create or replace function public.suiri_estornar_recebimento(p_id uuid,p_motivo text)returns void language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.estornar(p_id,p_motivo)$$;
+create or replace function suiri_private.cancelar(p_id uuid,p_motivo text)returns void language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare v public.suiri_vendas;begin
+ if not suiri_private.admin()then raise exception &#x27;Apenas administradores podem cancelar.&#x27;;end if;
+ if p_motivo is null or length(btrim(p_motivo))not between 1 and 1000 then raise exception &#x27;Informe o motivo.&#x27;;end if;
+ select * into v from public.suiri_vendas where id=p_id and empresa_id::text=suiri_private.empresa()for update;
+ if not found then raise exception &#x27;Venda não encontrada.&#x27;;end if;
+ if exists(select 1 from public.suiri_recebimentos where venda_id=p_id and estornado_em is null)then raise exception &#x27;Estorne os recebimentos antes de cancelar.&#x27;;end if;
+ update public.suiri_vendas set cancelada_em=coalesce(cancelada_em,now()),motivo_cancelamento=p_motivo where id=p_id;
+end $$;
+create or replace function public.suiri_cancelar_venda(p_id uuid,p_motivo text)returns void language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.cancelar(p_id,p_motivo)$$;
+
+-- Deletion is server-side and transactional. Remove Storage files through its API first.
+create or replace function suiri_private.excluir_usuario(p_usuario uuid)returns void language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare emp text;col text;t text;begin
+ select empresa_id::text into emp from public.perfis where id=p_usuario for update;
+ if not found then raise exception &#x27;Membro não encontrado.&#x27;;end if;
+ if emp is distinct from suiri_private.empresa()then raise exception &#x27;Membro de outra empresa.&#x27;;end if;
+ if p_usuario&lt;&gt;auth.uid() and not suiri_private.admin()then raise exception &#x27;Apenas administradores podem excluir membros.&#x27;;end if;
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-admin-&#x27;||emp));
+ if exists(select 1 from public.perfis where id=p_usuario and is_admin)and(select count(*)from public.perfis where empresa_id::text=emp and is_admin)&lt;2 then raise exception &#x27;Este é o último administrador. Transfira a administração ou exclua a empresa inteira.&#x27;;end if;
+ if exists(select 1 from storage.objects where bucket_id=&#x27;sistema-imagens&#x27; and name like &#x27;avatar_&#x27;||p_usuario::text||&#x27;_%&#x27;)then raise exception &#x27;Remova as fotos pelo aplicativo antes de excluir a conta.&#x27;;end if;
+ perform set_config(&#x27;suiri.interno&#x27;,&#x27;sim&#x27;,true);
+ delete from public.suiri_historico_tarefas where empresa_id::text=emp and registro-&gt;&gt;&#x27;criado_por&#x27;=p_usuario::text and coalesce((registro-&gt;&gt;&#x27;autonoma&#x27;)::boolean,false);
+ update public.suiri_historico_tarefas set registro=registro||jsonb_build_object(&#x27;criado_por&#x27;,case when registro-&gt;&gt;&#x27;criado_por&#x27;=p_usuario::text then null else registro-&gt;&gt;&#x27;criado_por&#x27; end,&#x27;assumido_por&#x27;,case when registro-&gt;&gt;&#x27;assumido_por&#x27;=p_usuario::text then null else registro-&gt;&gt;&#x27;assumido_por&#x27; end)where empresa_id::text=emp;
+ delete from public.avisos where empresa_id::text=emp and (ponto_freelance_id in(select id from public.livro_ponto where perfil_id=p_usuario)or tarefa_autonoma_id in(select id from public.tarefas where criado_por=p_usuario and coalesce(autonoma,false)));
+ update public.avisos a set lidos_por=(select p.lidos_por from jsonb_populate_record(null::public.avisos,jsonb_build_object(&#x27;lidos_por&#x27;,coalesce(to_jsonb(a.lidos_por),&#x27;[]&#x27;)-p_usuario::text))p)where empresa_id::text=emp;
+ update public.tarefas t set
+ ajudantes=(select p.ajudantes from jsonb_populate_record(null::public.tarefas,jsonb_build_object(&#x27;ajudantes&#x27;,coalesce(to_jsonb(t.ajudantes),&#x27;[]&#x27;)-p_usuario::text))p),
+ subitens=coalesce((select jsonb_agg(case when x-&gt;&gt;&#x27;feito_por&#x27;=p_usuario::text then x||jsonb_build_object(&#x27;feito_por&#x27;,null)else x end)from jsonb_array_elements(coalesce(t.subitens,&#x27;[]&#x27;))x),&#x27;[]&#x27;),
+ status=case when assumido_por=p_usuario and status=&#x27;em_andamento&#x27;then &#x27;pendente&#x27;else status end,
+ hora_inicio=case when assumido_por=p_usuario and status=&#x27;em_andamento&#x27;then null else hora_inicio end
+ where empresa_id::text=emp;
+ delete from public.vales where perfil_id=p_usuario;
+ delete from public.itens_comprados where perfil_id=p_usuario;
+ delete from public.livro_ponto where perfil_id=p_usuario;
+ -- Keep routines, business documents and their history. Only personal autonomous tasks are removed.
+ delete from public.tarefas where criado_por=p_usuario and coalesce(autonoma,false);
+ foreach t in array array[&#x27;tarefas&#x27;,&#x27;avisos&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;itens_comprados&#x27;,&#x27;vales&#x27;,&#x27;cardapio_consumo&#x27;,&#x27;suiri_vendas&#x27;,&#x27;suiri_recebimentos&#x27;]loop
+  foreach col in array array[&#x27;criado_por&#x27;,&#x27;registrado_por&#x27;,&#x27;responsavel_id&#x27;,&#x27;assumido_por&#x27;,&#x27;destinado_a&#x27;,&#x27;comprado_por&#x27;,&#x27;estornado_por&#x27;]loop
+   if exists(select 1 from information_schema.columns where table_schema=&#x27;public&#x27;and table_name=t and column_name=col)then
+    execute format(&#x27;update public.%I set %I=null where %I::text=$1 and empresa_id::text=$2&#x27;,t,col,col)using p_usuario::text,emp;
+   end if;
+  end loop;
+ end loop;
+ delete from public.perfis where id=p_usuario;
+ delete from auth.users where id=p_usuario;
+ perform set_config(&#x27;suiri.interno&#x27;,&#x27;nao&#x27;,true);
+end $$;
+create or replace function public.suiri_excluir_membro(p_usuario uuid)returns void language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.excluir_usuario(p_usuario)$$;
+create or replace function public.suiri_excluir_minha_conta()returns void language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.excluir_usuario(auth.uid())$$;
+
+create or replace function suiri_private.excluir_empresa(p_confirmacao text)returns void language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare emp text:=suiri_private.empresa();cnpj text;ids uuid[];t text;begin
+ if not suiri_private.admin()or emp is null then raise exception &#x27;Apenas administradores podem excluir a empresa.&#x27;;end if;
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-admin-&#x27;||emp));
+ select e.cnpj into cnpj from public.empresas e where id::text=emp for update;
+ if p_confirmacao is distinct from &#x27;EXCLUIR &#x27;||cnpj then raise exception &#x27;Confirmação de exclusão inválida.&#x27;;end if;
+ select array_agg(id)into ids from public.perfis where empresa_id::text=emp;
+ if exists(select 1 from storage.objects o where o.bucket_id=&#x27;sistema-imagens&#x27;and exists(select 1 from unnest(ids)u where o.name like &#x27;avatar_&#x27;||u::text||&#x27;_%&#x27;))then raise exception &#x27;Remova as fotos dos membros pelo aplicativo antes de excluir a empresa.&#x27;;end if;
+ perform set_config(&#x27;suiri.interno&#x27;,&#x27;sim&#x27;,true);
+ foreach t in array array[&#x27;suiri_historico_tarefas&#x27;,&#x27;suiri_recebimentos&#x27;,&#x27;suiri_vendas&#x27;,&#x27;suiri_contatos&#x27;,&#x27;avisos&#x27;,&#x27;tarefas&#x27;,&#x27;livro_ponto&#x27;,&#x27;vales&#x27;,&#x27;itens_comprados&#x27;,&#x27;pedidos_compra&#x27;,&#x27;contas_pagar&#x27;,&#x27;fechamento_caixa&#x27;,&#x27;cardapio_consumo&#x27;]loop
+  execute format(&#x27;delete from public.%I where empresa_id::text=$1&#x27;,t)using emp;
+ end loop;
+ delete from public.perfis where empresa_id::text=emp;
+ delete from public.empresas where id::text=emp;
+ delete from auth.users where id=any(ids);
+ perform set_config(&#x27;suiri.interno&#x27;,&#x27;nao&#x27;,true);
+end $$;
+create or replace function public.suiri_excluir_empresa(p_confirmacao text)returns void language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.excluir_empresa(p_confirmacao)$$;
+
+-- Only avatar files of self, or members administered in the same company.
+create or replace function suiri_private.pode_arquivo(p_nome text)returns boolean language sql stable security definer set search_path=&#x27;&#x27; as $$
+ select exists(select 1 from public.perfis p where p.empresa_id::text=suiri_private.empresa()and(p.id=auth.uid()or suiri_private.admin())and p_nome like &#x27;avatar_&#x27;||p.id::text||&#x27;_%&#x27;)
+$$;
+create or replace function suiri_private.arquivos(p_usuario uuid,p_toda_empresa boolean)returns jsonb language plpgsql security definer set search_path=&#x27;&#x27; as $$
+begin
+ if auth.uid()is null then raise exception &#x27;Entre na conta.&#x27;;end if;
+ if p_toda_empresa and not suiri_private.admin()then raise exception &#x27;Sem permissão.&#x27;;end if;
+ if not p_toda_empresa and p_usuario&lt;&gt;auth.uid()and not suiri_private.admin()then raise exception &#x27;Sem permissão.&#x27;;end if;
+ if not p_toda_empresa then
+  if not exists(select 1 from public.perfis where id=p_usuario and empresa_id::text=suiri_private.empresa())then raise exception &#x27;Membro não encontrado.&#x27;;end if;
+  if exists(select 1 from public.perfis where id=p_usuario and is_admin)and(select count(*)from public.perfis where empresa_id::text=suiri_private.empresa()and is_admin)&lt;2 then raise exception &#x27;O último administrador precisa transferir a administração ou excluir a empresa.&#x27;;end if;
+ end if;
+ return(select coalesce(jsonb_agg(jsonb_build_object(&#x27;bucket&#x27;,o.bucket_id,&#x27;nome&#x27;,o.name)),&#x27;[]&#x27;)from storage.objects o where o.bucket_id=&#x27;sistema-imagens&#x27;and exists(select 1 from public.perfis p where p.empresa_id::text=suiri_private.empresa()and(p_toda_empresa or p.id=p_usuario)and o.name like &#x27;avatar_&#x27;||p.id::text||&#x27;_%&#x27;));
+end $$;
+create or replace function public.suiri_arquivos_exclusao(p_usuario uuid default null,p_toda_empresa boolean default false)returns jsonb language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.arquivos(coalesce(p_usuario,auth.uid()),p_toda_empresa)$$;
+drop policy if exists suiri_limite_avatar on storage.objects;
+create policy suiri_limite_avatar on storage.objects as restrictive for delete to authenticated using(bucket_id&lt;&gt;&#x27;sistema-imagens&#x27; or suiri_private.pode_arquivo(name));
+drop policy if exists suiri_remover_avatar on storage.objects;
+create policy suiri_remover_avatar on storage.objects for delete to authenticated using(bucket_id=&#x27;sistema-imagens&#x27; and suiri_private.pode_arquivo(name));
+drop policy if exists suiri_ler_avatar on storage.objects;
+create policy suiri_ler_avatar on storage.objects for select to authenticated using(bucket_id=&#x27;sistema-imagens&#x27;and suiri_private.pode_arquivo(name));
+-- Upload only own avatar. RLS checks apply to both insert and overwrite.
+drop policy if exists suiri_limite_upload on storage.objects;
+create policy suiri_limite_upload on storage.objects as restrictive for insert to authenticated with check(bucket_id&lt;&gt;&#x27;sistema-imagens&#x27; or name like &#x27;avatar_&#x27;||auth.uid()::text||&#x27;_%&#x27;);
+drop policy if exists suiri_upload_avatar on storage.objects;
+create policy suiri_upload_avatar on storage.objects for insert to authenticated with check(bucket_id=&#x27;sistema-imagens&#x27;and name like &#x27;avatar_&#x27;||auth.uid()::text||&#x27;_%&#x27;);
+drop policy if exists suiri_limite_update on storage.objects;
+create policy suiri_limite_update on storage.objects as restrictive for update to authenticated using(bucket_id&lt;&gt;&#x27;sistema-imagens&#x27; or name like &#x27;avatar_&#x27;||auth.uid()::text||&#x27;_%&#x27;)with check(bucket_id&lt;&gt;&#x27;sistema-imagens&#x27; or name like &#x27;avatar_&#x27;||auth.uid()::text||&#x27;_%&#x27;);
+
+-- Company identity cannot change through the normal editor.
+create or replace function suiri_private.proteger_empresa()returns trigger language plpgsql set search_path=&#x27;&#x27; as $$begin
+ if new.id is distinct from old.id or new.cnpj is distinct from old.cnpj then raise exception &#x27;O CNPJ e a identidade da empresa não podem ser trocados.&#x27;;end if;return new;end $$;
+drop trigger if exists suiri_proteger_empresa on public.empresas;
+create trigger suiri_proteger_empresa before update on public.empresas for each row execute function suiri_private.proteger_empresa();
+
+-- Preserve completed executions before routines restart, so reports/learning retain history.
+do $$declare tipo text;begin
+ select format_type(atttypid,atttypmod)into tipo from pg_attribute where attrelid=&#x27;public.empresas&#x27;::regclass and attname=&#x27;id&#x27;;
+ execute format(&#x27;create table if not exists public.suiri_historico_tarefas(id uuid primary key default gen_random_uuid(),empresa_id %s not null references public.empresas(id),tarefa_id text not null,concluida_em timestamptz not null,registro jsonb not null,unique(tarefa_id,concluida_em))&#x27;,tipo);
+end $$;
+alter table public.suiri_historico_tarefas enable row level security;
+revoke all on public.suiri_historico_tarefas from anon,authenticated;
+grant select on public.suiri_historico_tarefas to authenticated;
+drop policy if exists suiri_ler on public.suiri_historico_tarefas;
+create policy suiri_ler on public.suiri_historico_tarefas for select to authenticated using(empresa_id::text=suiri_private.empresa());
+create index if not exists suiri_historico_empresa_data on public.suiri_historico_tarefas(empresa_id,concluida_em);
+create or replace function suiri_private.arquivar_execucao()returns trigger language plpgsql security definer set search_path=&#x27;&#x27; as $$begin
+ if new.status=&#x27;concluida&#x27;and new.hora_fim is not null then
+  insert into public.suiri_historico_tarefas(empresa_id,tarefa_id,concluida_em,registro)values(new.empresa_id,new.id::text,new.hora_fim,to_jsonb(new))on conflict(tarefa_id,concluida_em)do nothing;
+ end if;return new;
+end $$;
+drop trigger if exists suiri_arquivar_execucao on public.tarefas;
+create trigger suiri_arquivar_execucao after insert or update on public.tarefas for each row execute function suiri_private.arquivar_execucao();
+insert into public.suiri_historico_tarefas(empresa_id,tarefa_id,concluida_em,registro)select empresa_id,id::text,hora_fim,to_jsonb(t)from public.tarefas t where status=&#x27;concluida&#x27;and hora_fim is not null on conflict(tarefa_id,concluida_em)do nothing;
+create or replace function suiri_private.reiniciar()returns integer language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare hoje date:=(now()at time zone &#x27;America/Sao_Paulo&#x27;)::date;hora text:=to_char(now()at time zone &#x27;America/Sao_Paulo&#x27;,&#x27;HH24:MI&#x27;);n int;begin
+ if suiri_private.empresa()is null then raise exception &#x27;Empresa não vinculada.&#x27;;end if;
+ perform set_config(&#x27;suiri.interno&#x27;,&#x27;sim&#x27;,true);
+ update public.tarefas t set status=&#x27;pendente&#x27;,assumido_por=null,ajudantes=&#x27;{}&#x27;,hora_inicio=null,hora_fim=null,
+ subitens=coalesce((select jsonb_agg(s||jsonb_build_object(&#x27;concluido&#x27;,false,&#x27;feito_por&#x27;,null))from jsonb_array_elements(coalesce(t.subitens,&#x27;[]&#x27;))s),&#x27;[]&#x27;),ultimo_reinicio=hoje
+ where empresa_id::text=suiri_private.empresa()and recorrente=true and status=&#x27;concluida&#x27;
+ and (hora_fim at time zone &#x27;America/Sao_Paulo&#x27;)::date&lt;hoje and ultimo_reinicio is distinct from hoje
+ and hora&gt;=coalesce(horario_reinicio,&#x27;01:00&#x27;);
+ get diagnostics n=row_count;perform set_config(&#x27;suiri.interno&#x27;,&#x27;nao&#x27;,true);return n;
+end $$;
+create or replace function public.suiri_reiniciar_rotinas()returns integer language sql security invoker set search_path=&#x27;&#x27; as $$select suiri_private.reiniciar()$$;
+
+-- Generate freelance approval after synchronization as well as during online use.
+create or replace function suiri_private.aviso_diaria()returns trigger language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare anterior text:=current_setting(&#x27;suiri.interno&#x27;,true);n text;begin
+ if new.status_turno=&#x27;aguardando_aprovacao_diaria&#x27;and old.status_turno is distinct from new.status_turno then
+  select nome into n from public.perfis where id=new.perfil_id;
+  if not exists(select 1 from public.avisos where ponto_freelance_id=new.id)then
+   perform set_config(&#x27;suiri.interno&#x27;,&#x27;sim&#x27;,true);
+   insert into public.avisos(empresa_id,titulo,mensagem,setor_destino,criado_por,lidos_por,ponto_freelance_id)
+   values(new.empresa_id,&#x27;Aprovação de diária: &#x27;||coalesce(n,&#x27;Colaborador&#x27;),&#x27;Expediente concluído. Confira o ponto registrado e aprove a diária.&#x27;,&#x27;todos&#x27;,new.perfil_id,&#x27;{}&#x27;,new.id);
+   perform set_config(&#x27;suiri.interno&#x27;,coalesce(anterior,&#x27;nao&#x27;),true);
+  end if;
+ end if;return new;
+end $$;
+drop trigger if exists suiri_aviso_diaria on public.livro_ponto;
+create trigger suiri_aviso_diaria after update on public.livro_ponto for each row execute function suiri_private.aviso_diaria();
+
+-- Learn names/prices from authorized management consumption entries, without changing existing prices.
+create or replace function suiri_private.aprender_consumo()returns trigger language plpgsql security definer set search_path=&#x27;&#x27; as $$
+declare n text:=btrim(new.descricao_item);v numeric:=new.valor_unitario;begin
+ if not suiri_private.permissao(&#x27;financeiro&#x27;)then return new;end if;
+ if n is null or length(n)not between 1 and 180 or v is null or v&lt;=0 then return new;end if;
+ perform pg_advisory_xact_lock(hashtext(&#x27;suiri-catalogo-&#x27;||new.empresa_id::text));
+ if not exists(select 1 from public.cardapio_consumo where empresa_id=new.empresa_id and lower(btrim(nome_item))=lower(n))then
+  insert into public.cardapio_consumo(empresa_id,nome_item,valor_padrao,ativo)values(new.empresa_id,n,round(v,2),true);
+ end if;return new;
+end $$;
+drop trigger if exists suiri_aprender_consumo on public.itens_comprados;
+create trigger suiri_aprender_consumo after insert on public.itens_comprados for each row execute function suiri_private.aprender_consumo();
+
+create or replace function public.suiri_versao()returns integer language sql immutable security invoker set search_path=&#x27;&#x27;as $$select 4$$;
+
+-- Revoke the legacy destructive RPCs, including inherited PUBLIC grants.
+do $$declare r record;begin
+ for r in select p.oid::regprocedure as fn from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=&#x27;public&#x27;and p.proname in(&#x27;apagar_usuario_completo&#x27;,&#x27;reset_user_password_admin&#x27;)loop
+  execute format(&#x27;revoke all on function %s from public,anon,authenticated&#x27;,r.fn);
+ end loop;
+end $$;
+revoke all on all functions in schema suiri_private from public,anon;
+-- Grant only fixed routines, whose arguments are validated inside the function.
+grant execute on all functions in schema suiri_private to authenticated;
+revoke execute on function suiri_private.vincular_usuario(uuid,text,text,jsonb)from authenticated;
+-- Internal trigger functions are not callable as ordinary RPCs; destructive helpers still enforce all authorization.
+do $$declare r record;begin
+ for r in select p.oid::regprocedure fn from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=&#x27;public&#x27;and p.proname like &#x27;suiri_%&#x27;loop
+  execute format(&#x27;revoke all on function %s from public,anon&#x27;,r.fn);
+  execute format(&#x27;grant execute on function %s to authenticated&#x27;,r.fn);
+ end loop;
+end $$;
+grant execute on function public.suiri_versao()to anon;
+notify pgrst,&#x27;reload schema&#x27;;
+commit;
+</textarea></details></section></main><script>document.addEventListener('click',async e=>{const id=e.target.dataset.copy;if(!id)return;const area=document.getElementById(id),msg=document.getElementById('msg'+id.slice(-2));try{if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(area.value);else{area.parentElement.open=true;area.focus();area.select();if(!document.execCommand('copy'))throw Error();}msg.textContent='Copiado. Cole no SQL Editor do Supabase e confira o conteúdo antes de executar.';}catch{area.parentElement.open=true;area.focus();area.select();msg.textContent='O navegador bloqueou a cópia automática. Toque no texto selecionado e escolha Copiar.';}});</script></html>

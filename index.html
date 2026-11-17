@@ -3,96 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Suiri - Operacional</title>
+    <title>Suiri Empresas</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#EEF4F2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
     <!-- Supabase, Biblioteca de PDF e Leitor de Código de Barras / QR Code -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <script src="vendor/supabase.js"></script>
+    <script src="vendor/html2pdf.bundle.min.js"></script>
+    <script src="vendor/zxing.min.js"></script>
     
     <!-- Conexão com o CSS -->
-    <script src="aparencia.js"></script>
-    <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="marca.css">
+    <link rel="stylesheet" href="style.css?v=4.1">
+    <link rel="stylesheet" href="marca.css?v=4.1">
+    <link rel="stylesheet" href="visual-suiri.css?v=4.1">
 </head>
 <body>
-    <dialog id="config-visual" aria-labelledby="titulo-config"><form method="dialog"><h2 id="titulo-config">Configurações</h2><button aria-label="Fechar">✕</button></form><div class="opcao-tema">
-        <label for="tema-interface">Tema</label>
-        <select id="tema-interface">
-            <option value="sistema">Automático</option>
-            <option value="claro">Claro</option>
-            <option value="escuro">Escuro</option>
-        </select>
-    </div></dialog>
+    <dialog id="config-visual" aria-labelledby="config-visual-titulo"><div class="suiri-dialog-cabecalho"><h2 id="config-visual-titulo">Configurações</h2><button type="button" id="fechar-aparencia-login" aria-label="Fechar configurações">×</button></div><label class="opcao-tema" for="tema-interface"><span>Tema</span><select id="tema-interface"><option value="sistema">Automático</option><option value="claro">Claro</option><option value="escuro">Escuro</option></select></label><p class="suiri-dialog-dica">A aparência acompanha sua escolha em todas as telas.</p></dialog>
     <div id="toast-container"></div>
     <div id="backdrop-menu-global"></div>
 
     <!-- BANNER DE STATUS DA FILA OFFLINE -->
     <div id="banner-offline-status" class="oculto">
         <span class="ponto-offline-pulsante"></span>
-        <button type="button" id="revisar-envio" hidden onclick="conferirEnvio()">Conferir</button>
-        <span role="status" id="texto-offline-status">Modo Offline: alterações guardadas no telemóvel</span>
+        <span id="texto-offline-status">Modo Offline: alterações guardadas no telemóvel</span>
     </div>
 
     <!-- TELA DE LOGIN -->
     <div id="tela-login" class="container">
         <div class="card-login">
-            <div class="faixa-marca"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri"></span><span class="empresa">Empresa</span></div><button class="config-marca" aria-label="Configurações" onclick="document.getElementById('config-visual').showModal()"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5m4 0h9M3 17h11m4 0h3"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></button></div>
+            <div class="faixa-marca suiri-marca-login"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri" width="154" height="77"></span><span class="empresa">Empresa</span></div><button type="button" class="config-marca" id="abrir-aparencia-login" aria-label="Configurações de aparência"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5m4 0h9M3 17h11m4 0h3"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></button></div>
             <h1 class="logo-estilizada" id="login-logo-titulo">Suiri</h1>
             <p class="subtitulo">Acesso da Equipe</p>
             <form id="form-login">
                 <div class="input-group oculto" id="grupo-nome">
-                    <label for="nome-cadastro">Nome do Funcionário</label>
+                    <label for="nome-cadastro">Seu nome</label>
                     <input type="text" id="nome-cadastro" placeholder="Ex: João Silva">
-                </div>
-                <div class="input-group oculto" id="grupo-setor">
-                    <label for="setor-cadastro">Setor de Atuação</label>
-                    <select id="setor-cadastro">
-                        <option value="frente">Frente (Atendimento/Salão)</option>
-                        <option value="copa">Copa (Bebidas/Sobremesas)</option>
-                        <option value="cozinha">Cozinha</option>
-                        <option value="logistica">Logística (Estoque/Compras)</option>
-                    </select>
                 </div>
                 <div class="input-group">
                     <label for="email">E-mail</label>
-                    <input type="email" id="email" required placeholder="seu@email.com">
+                    <input type="email" id="email" autocomplete="email" required placeholder="seu@email.com">
                 </div>
                 <div class="input-group">
                     <label for="senha">Senha</label>
-                    <input type="password" id="senha" required placeholder="Sua senha">
+                    <input type="password" id="senha" autocomplete="current-password" required placeholder="Sua senha">
                 </div>
                 <button type="submit" class="btn-principal" id="btn-entrar">Entrar no Sistema</button>
             </form>
             <p id="link-alternar-modo" class="link-alternar" onclick="alternarModoCadastro()">Não tem conta? Cadastre-se</p>
             <p id="link-esqueci-senha" class="link-alternar" style="margin-top: 8px; font-size: 11px; cursor: pointer; color: var(--cor-primaria); text-decoration: underline;" onclick="window.abrirModalEsqueciSenha()">Esqueci minha senha</p>
-            <p id="msg-erro" class="mensagem-erro oculto"></p>
+            <div id="vinculo-pendente" class="oculto"><button type="button" class="btn-secundario" onclick="window.retomarVinculo()">Vincular minha conta</button><button type="button" class="btn-secundario" onclick="fazerLogoff()">Sair</button></div><p id="msg-erro" class="mensagem-erro oculto"></p>
         </div>
     </div>
 
     <!-- TELA PRINCIPAL DO APP -->
     <div id="tela-app" class="container oculto">
+        <div class="faixa-marca suiri-marca-app"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri" width="154" height="77"></span><span class="empresa">Empresa</span></div><button type="button" class="config-marca" id="abrir-ajustes-marca" aria-label="Abrir ajustes"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5m4 0h9M3 17h11m4 0h3"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></button></div>
         
         <!-- BARRA SUPERIOR FIXA COMPACTA -->
-        <div class="faixa-marca"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri"></span><span class="empresa">Empresa</span></div><button class="config-marca" aria-label="Configurações" onclick="document.getElementById('config-visual').showModal()"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5m4 0h9M3 17h11m4 0h3"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></button></div><nav class="turno-nav" aria-label="Páginas"><button id="turno-nav-turno" onclick="alternarTelas('operacao')"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg><span>Turno</span></button>
-<button id="turno-nav-equipe" class="oculto" onclick="abrirPainelAoVivo()"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 4 5"/></svg><span>Equipe</span></button>
-<button id="turno-nav-gestao" class="oculto" onclick="alternarTelas('gestao')"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M3 12q9 5 18 0"/></svg><span>Gestão</span></button>
-<button id="turno-nav-relatorios" class="oculto" onclick="alternarTelas('relatorios')"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h17M8 15v-3m5 3V8m5 7v-5"/></svg><span>Relatórios</span></button>
-<button id="turno-nav-admin" class="oculto" onclick="alternarTelas('admin')"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-5 8-8 10-3-2-8-5-8-10V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg><span>Admin</span></button>
-<button id="turno-nav-perfil" onclick="abrirPainelPerfil()"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Perfil</span></button></nav>
-        <nav class="botoes-topo" id="menu-acoes" aria-label="Outras ações">
+        <nav class="botoes-topo">
             <button id="btn-tela-gestao" class="btn-topo btn-topo-gestao-unificada oculto" onclick="alternarTelas('gestao')">🛍️ Gestão</button>
             <button id="btn-tela-painel" class="btn-topo oculto" onclick="abrirPainelAoVivo()">Painel</button>
             <button id="btn-tela-relatorios" class="btn-topo oculto" onclick="alternarTelas('relatorios')">Relatórios</button>
             <button id="btn-tela-admin" class="btn-topo oculto" onclick="alternarTelas('admin')">Admin</button>
-            <button id="btn-tela-operacao" class="btn-topo oculto" onclick="alternarTelas('operacao')">Meu turno</button>
+            <button id="btn-tela-operacao" class="btn-topo oculto" onclick="alternarTelas('operacao')">Voltar</button>
             <button id="btn-tela-perfil" class="btn-topo" onclick="abrirPainelPerfil()">👤 Perfil</button>
-            
-            
+            <button id="btn-tarefa-autonoma" class="btn-topo btn-topo-autonoma" onclick="window.abrirModalTarefaAutonoma()">+ Tarefa</button>
+            <button id="btn-sair" class="btn-topo btn-topo-sair" onclick="fazerLogoff()">Sair</button>
         </nav>
 
         <!-- CABEÇALHO DO UTILIZADOR (TELA DE OPERAÇÃO) -->
@@ -120,7 +98,7 @@
             <section class="painel-unificado-bloco">
                 <div class="painel-unificado-cabecalho">
                     <div>
-                        <h3 style="margin-bottom: 2px; color: var(--cor-pedido);"><span class="pictograma tom-compra"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h3l3 12h10l2-9H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span>Compras a Fazer</h3>
+                        <h3 style="margin-bottom: 2px; color: var(--cor-pedido);">🛒 Compras a Fazer</h3>
                         <p style="font-size: 11px; color: var(--texto-suave);">Itens pendentes solicitados pela equipe</p>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px;">
@@ -153,7 +131,7 @@
             <section class="painel-unificado-bloco">
                 <div class="painel-unificado-cabecalho">
                     <div>
-                        <h3 style="margin-bottom: 2px; color: #0284c7;"><span class="pictograma tom-caixa"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18m-6 5h3"/></svg></span>Contas a Pagar</h3>
+                        <h3 style="margin-bottom: 2px; color: #0284c7;">💳 Contas a Pagar</h3>
                         <p style="font-size: 11px; color: var(--texto-suave);">Vencimentos dos próximos 7 dias</p>
                     </div>
                     <button class="btn-principal" onclick="window.toggleFormNovaContaGestao()" style="width: auto; margin-top: 0; padding: 6px 12px; font-size: 11px;">+ Nova Conta</button>
@@ -169,7 +147,7 @@
                 </div>
 
                 <!-- FORMULÁRIO DE CADASTRO DE NOVA CONTA -->
-                <div id="form-nova-conta-gestao" class="oculto" style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--vidro-borda);">
+                <div id="form-nova-conta-gestao" class="oculto" style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda);">
                     <label style="font-size: 11px; font-weight: 700;">Fornecedor / Descrição</label>
                     <input type="text" id="input-conta-fornecedor-gestao" placeholder="Ex: Fornecedor de Peixes / Energia" style="margin-bottom: 8px;">
 
@@ -250,7 +228,7 @@
             <section class="painel-unificado-bloco painel-fechamento-caixa" id="secao-fechamento-caixa">
                 <div class="painel-unificado-cabecalho">
                     <div>
-                        <h3 style="margin-bottom: 2px; color: var(--cor-primaria);"><span class="pictograma tom-caixa"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18m-6 5h3"/></svg></span>Fechamento de Caixa</h3>
+                        <h3 style="margin-bottom: 2px; color: var(--cor-primaria);">💵 Fechamento de Caixa</h3>
                         <p style="font-size: 11px; color: var(--texto-suave);">Apuração financeira diária das entradas e gaveta</p>
                     </div>
                     <button id="btn-toggle-form-caixa" class="btn-principal oculto" onclick="window.toggleFormFechamentoCaixa()" style="width: auto; margin-top: 0; padding: 6px 12px; font-size: 11px;">+ Novo Fechamento</button>
@@ -305,7 +283,7 @@
                         </div>
                     </div>
                     
-                    <div id="ultimo-caixa-obs-container" class="oculto" style="font-size: 11px; color: var(--texto-suave); border-top: 1px solid var(--vidro-borda); padding-top: 6px;">
+                    <div id="ultimo-caixa-obs-container" class="oculto" style="font-size: 11px; color: var(--texto-suave); border-top: var(--vidro-borda); padding-top: 6px;">
                         <strong>Observações:</strong> <span id="ultimo-caixa-obs"></span>
                     </div>
                 </div>
@@ -357,7 +335,7 @@
                     </div>
 
                     <!-- PRÉ-VISUALIZAÇÃO EM TEMPO REAL -->
-                    <div style="background: var(--vidro-bg); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: var(--vidro-bg); padding: 10px 12px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 12px; font-weight: 700;">Total Apurado:</span>
                         <strong id="label-form-caixa-total" style="font-size: 16px; color: var(--cor-primaria);">R$ 0,00</strong>
                     </div>
@@ -376,7 +354,7 @@
         </main>
 
         <!-- PÁGINA: DOSSIÊ DO COLABORADOR COM META DE 60% -->
-        <main id="conteudo-perfil" class="oculto"><button id="btn-sair" class="btn-topo btn-topo-sair" onclick="fazerLogoff()">Sair</button>
+        <main id="conteudo-perfil" class="oculto">
             <section class="cartao-geral">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div>
@@ -395,7 +373,7 @@
                 </div>
 
                 <!-- BARRA DE META DE 60% DE TAREFAS -->
-                <div style="margin-bottom: 16px; background: var(--input-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--vidro-borda);">
+                <div style="margin-bottom: 16px; background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda);">
                     <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--cor-texto);">Desempenho no Turno (Meta: 60%)</div>
                     <div class="progresso-info">
                         <span>Concluído: <strong id="perfil-texto-porcentagem">0%</strong> (<span id="perfil-qtd-tarefas">0/0</span>)</span>
@@ -409,18 +387,18 @@
                 </div>
 
                 <!-- BALANÇO FINANCEIRO DO COLABORADOR -->
-                <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--vidro-borda); margin-bottom: 14px;">
+                <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span style="font-size: 12px; font-weight: 700; color: var(--cor-texto);">💵 Meu Balanço Financeiro</span>
                         <span id="perfil-tag-contrato" class="tag-setor" style="font-size: 10px;">Fixo</span>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-                        <div style="background: var(--vidro-bg); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--vidro-borda);">
+                        <div style="background: var(--vidro-bg); padding: 8px; border-radius: 8px; text-align: center; border: var(--vidro-borda);">
                             <span id="perfil-label-remuneracao" style="font-size: 10px; color: var(--texto-suave); display: block;">Salário Base</span>
                             <strong id="perfil-resumo-remuneracao" style="font-size: 13px; color: var(--cor-texto);">R$ 0,00</strong>
                         </div>
-                        <div style="background: var(--vidro-bg); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--vidro-borda);">
+                        <div style="background: var(--vidro-bg); padding: 8px; border-radius: 8px; text-align: center; border: var(--vidro-borda);">
                             <span style="font-size: 10px; color: var(--texto-suave); display: block;">Total Descontos</span>
                             <strong id="perfil-resumo-descontos" style="font-size: 13px; color: var(--cor-erro);">R$ 0,00</strong>
                         </div>
@@ -441,7 +419,7 @@
                 </div>
 
                 <!-- CAMPO DE TELEFONE / WHATSAPP DO COLABORADOR -->
-                <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--vidro-borda); margin-bottom: 14px;">
+                <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 14px;">
                     <span style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px;">📱 Meu WhatsApp</span>
                     <div style="display: flex; gap: 6px;">
                         <input type="tel" id="input-meu-whatsapp" placeholder="Ex: (48) 99999-9999" style="font-size: 12px; padding: 8px; flex: 2;">
@@ -450,13 +428,13 @@
                 </div>
 
                 <!-- SELEÇÃO E CORTE DE FOTO DE PERFIL (CROP 150X150 EM WEBP) -->
-                <div id="box-envio-foto-perfil" style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--vidro-borda); margin-bottom: 14px;">
+                <div id="box-envio-foto-perfil" style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 14px;">
                     <span style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px;">📸 Foto de Perfil</span>
                     <input type="file" id="input-arquivo-foto-perfil" accept="image/*" onchange="window.carregarImagemParaCrop(event)" style="font-size: 12px; padding: 6px;">
                 </div>
 
                 <!-- FORMULÁRIO DE TROCA DE SENHA PRÓPRIA -->
-                <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--vidro-borda); margin-bottom: 14px;">
+                <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 14px;">
                     <span style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 8px;">🔐 Definir Minha Senha</span>
                     <input type="password" id="input-nova-senha-perfil" placeholder="Nova senha..." style="margin-bottom: 6px;">
                     <input type="password" id="input-confirma-senha-perfil" placeholder="Confirmar nova senha..." style="margin-bottom: 8px;">
@@ -495,7 +473,7 @@
             <section class="cartao-geral">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                     <div>
-                        <h3 style="margin-bottom: 2px;"><span class="pictograma tom-equipe"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 4 5"/></svg></span>Painel ao Vivo da Equipe</h3>
+                        <h3 style="margin-bottom: 2px;">⚡ Painel ao Vivo da Equipe</h3>
                         <p style="font-size: 12px; color: var(--texto-suave);">Status em tempo real de cada colaborador</p>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px;">
@@ -530,7 +508,7 @@
         <main id="conteudo-admin" class="oculto">
             <section class="cartao-geral cartao-admin">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                    <h3 style="margin-bottom: 0;"><span class="pictograma tom-admin"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-5 8-8 10-3-2-8-5-8-10V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>Gestão Administrativa</h3>
+                    <h3 style="margin-bottom: 0;">⚙️ Gestão Administrativa</h3>
                     <div style="display:flex; align-items:center; gap:6px;">
                         <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" title="Atualizar dados agora">🔄</button>
                         <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="admin" onclick="window.alternarTravamentoHome('admin')" title="Definir Admin como Página Inicial">🔓</button>
@@ -545,7 +523,7 @@
                         <option value="">Selecione o colaborador...</option>
                     </select>
 
-                    <div id="admin-box-permissoes" class="oculto" style="margin-top: 12px; background: var(--input-bg); padding: 14px; border-radius: 12px; border: 1px solid var(--vidro-borda);">
+                    <div id="admin-box-permissoes" class="oculto" style="margin-top: 12px; background: var(--input-bg); padding: 14px; border-radius: 12px; border: var(--vidro-borda);">
                         <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
                                 <input type="checkbox" id="check-is-admin"> <strong>Administrador</strong>
@@ -559,7 +537,7 @@
                         </div>
 
                         <!-- MATRIZ DE PERMISSÕES MODULARES EM CARDS MODERNOS COM ALINHAMENTO PERFEITO -->
-                        <div id="admin-permissoes-socio-lista" class="oculto" style="border-top: 1.5px solid var(--vidro-borda); padding-top: 12px;">
+                        <div id="admin-permissoes-socio-lista" class="oculto" style="border-top: var(--vidro-borda); padding-top: 12px;">
                             
                             <!-- GRUPO 1: OPERAÇÃO & EQUIPA -->
                             <div class="grupo-permissoes-titulo">📋 Operação & Chão de Loja</div>
@@ -677,7 +655,7 @@
                 </div>
 
                 <!-- BOTÃO PARA GERIR CARDÁPIO DE CONSUMO INTERNO -->
-                <div style="margin-top: 16px; border-top: 1px solid var(--vidro-borda); padding-top: 14px;">
+                <div style="margin-top: 16px; border-top: var(--vidro-borda); padding-top: 14px;">
                     <button class="btn-secundario" onclick="window.abrirModalGerenciarCardapio()" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 700; color: var(--cor-primaria);">📋 Gerenciar Itens do Cardápio de Consumo</button>
                 </div>
             </section>
@@ -685,20 +663,9 @@
 
         <!-- PÁGINA OPERACIONAL PRINCIPAL -->
         <main id="conteudo-operacional">
-            <section class="cartao-geral cartao-ponto">
-                <span class="turno-data" id="turno-data"></span><h2>Meu turno</h2>
-                <p id="status-ponto" class="status-texto">Verificando turno...</p>
-                <button id="btn-ponto-entrada" class="btn-sucesso oculto">Iniciar Expediente</button>
-                <button id="btn-ponto-saida" class="btn-erro oculto">Encerrar Expediente</button>
-                <div id="turno-resumo" class="oculto">
-                    <p id="turno-proxima"></p>
-                    <progress id="turno-progresso" value="0" max="1" aria-label="Tarefas concluídas"></progress>
-                    <a href="#secao-tarefas" id="turno-progresso-texto">Ver tarefas</a>
-                </div>
-            </section>
             <section class="area-seccao" id="secao-quadro-avisos">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h3 style="margin-bottom: 0;"><span class="pictograma tom-aviso"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 15-6v15L3 14zm3 5 2 5h3l-2-5"/></svg></span>Mural de Avisos</h3>
+                    <h3 style="margin-bottom: 0;">Mural de Avisos</h3>
                     <button id="btn-toggle-form-aviso" class="btn-secundario oculto btn-admin-only" onclick="window.toggleFormAviso()">+ Publicar</button>
                 </div>
                 <div class="form-insercao oculto" id="form-novo-aviso">
@@ -718,12 +685,17 @@
             
             <hr class="divisor">
 
-
+            <section class="cartao-geral cartao-ponto">
+                <h3>Registro de Ponto</h3>
+                <p id="status-ponto" class="status-texto">Verificando turno...</p>
+                <button id="btn-ponto-entrada" class="btn-sucesso oculto">Iniciar Expediente</button>
+                <button id="btn-ponto-saida" class="btn-erro oculto">Encerrar Expediente</button>
+            </section>
 
             <!-- FINANCEIRO GERENCIAL (SÓCIOS, GERENTES E ADMIN) -->
             <section class="cartao-geral cartao-admin oculto" id="cartao-financeiro-gerencial">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin-bottom: 0;"><span class="pictograma tom-caixa"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18m-6 5h3"/></svg></span>Gestão Financeira & Vales</h3>
+                    <h3 style="margin-bottom: 0;">💰 Gestão Financeira & Vales</h3>
                     <button id="btn-toggle-financeiro" class="btn-secundario" onclick="window.toggleFormFinanceiro()" style="padding: 4px 10px; font-size: 11px;">Incluir</button>
                 </div>
                 <div id="corpo-financeiro" class="form-insercao oculto" style="padding-top: 14px;">
@@ -734,7 +706,7 @@
                     <textarea id="input-obs-vale" placeholder="Motivo / Observação..." rows="2"></textarea>
                     <button id="btn-submit-vale" class="btn-admin-roxo" onclick="lancarVale()">Registrar Vale</button>
 
-                    <label style="border-top: 1px solid var(--vidro-borda); padding-top: 12px; margin-top: 10px;">Registrar Retirada / Compra da Equipe</label>
+                    <label style="border-top: var(--vidro-borda); padding-top: 12px; margin-top: 10px;">Registrar Retirada / Compra da Equipe</label>
                     <select id="select-func-compra"><option value="">Quem comprou?</option></select>
                     <input type="text" id="input-desc-item" placeholder="Item...">
                     <div style="display: flex; gap: 6px;">
@@ -750,8 +722,8 @@
             <!-- TAREFAS OPERACIONAIS -->
             <section class="cartao-geral" id="secao-tarefas">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h3 style="margin-bottom: 0;"><span class="pictograma tom-tarefas"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8 12 3 3 5-6"/></svg></span>Tarefas Operacionais</h3>
-                    <button id="btn-tarefa-autonoma" class="btn-topo btn-topo-autonoma" onclick="window.abrirModalTarefaAutonoma()">+ Tarefa</button><button id="btn-toggle-form-tarefa" class="btn-secundario oculto btn-admin-only" onclick="window.toggleFormDelegar()">+ Delegar</button>
+                    <h3 style="margin-bottom: 0;">Tarefas Operacionais</h3>
+                    <button id="btn-toggle-form-tarefa" class="btn-secundario oculto btn-admin-only" onclick="window.toggleFormDelegar()">+ Delegar</button>
                 </div>
                 
                 <!-- FORMULÁRIO DE NOVA TAREFA COM HORÁRIO LIMITE, RECORRÊNCIA E SUBITENS -->
@@ -794,7 +766,7 @@
                     </select>
 
                     <!-- RECORRÊNCIA DIÁRIA -->
-                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 10px;">
+                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
                         <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--cor-texto);">
                             <input type="checkbox" id="check-tarefa-recorrente" onchange="document.getElementById('box-horario-reinicio').classList.toggle('oculto', !this.checked)" checked style="width: 16px; height: 16px; accent-color: var(--cor-primaria);">
                             <span>🔁 Tarefa Recorrente Diária</span>
@@ -806,7 +778,7 @@
                     </div>
 
                     <!-- CHECKLIST DE SUBITENS -->
-                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 10px;">
+                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                             <span style="font-size: 11px; font-weight: 700; color: var(--cor-primaria);">Checklist de Subitens (Opcional)</span>
                             <button type="button" class="btn-secundario" onclick="window.adicionarCampoSubitem()" style="padding: 2px 8px; font-size: 11px;">+ Item</button>
@@ -900,7 +872,7 @@
 
             <!-- REPOSIÇÃO E ESTOQUE (SOLICITAR ITEM FALTANTE POR CATEGORIA) -->
             <section class="area-seccao" id="secao-compras">
-                <h3 style="color: var(--cor-pedido); margin-bottom: 8px;"><span class="pictograma tom-compra"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h3l3 12h10l2-9H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span>Reposição & Estoque</h3>
+                <h3 style="color: var(--cor-pedido); margin-bottom: 8px;">Reposição & Estoque</h3>
                 <div class="form-insercao">
                     <div class="flex-linha-mobile" style="margin-bottom: 6px;">
                         <input type="text" id="input-pedido" placeholder="Item em falta..." style="flex: 2;">
@@ -921,7 +893,7 @@
 
             <!-- CONSUMO RÁPIDO DO COLABORADOR COM AUTOCOMPLETE & QUANTIDADE (-30% OFF) -->
             <section class="area-seccao cartao-geral">
-                <h3 style="color: var(--cor-primaria); margin-bottom: 6px;"><span class="pictograma tom-consumo"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v6q3 4 6 0V3M7 3v18m11 0V3q-6 7-3 10h3"/></svg></span>Meu Consumo Rápido (-30% OFF)</h3>
+                <h3 style="color: var(--cor-primaria); margin-bottom: 6px;">🍔 Meu Consumo Rápido (-30% OFF)</h3>
                 <div class="flex-linha-mobile" style="align-items: flex-start;">
                     <div class="autocomplete-container" style="flex: 2.5;">
                         <input type="text" id="input-meu-consumo-desc" placeholder="Comece a digitar o produto..." oninput="window.filtrarAutocompleteConsumo(this.value)" autocomplete="off">
@@ -947,7 +919,7 @@
             <section class="cartao-geral cartao-admin bloco-inspecao-topo-relatorios" id="bloco-inspecao-equipe-relatorios">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div>
-                        <h3 style="margin-bottom: 2px; color: var(--cor-socio);"><span class="pictograma tom-equipe"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 4 5"/></svg></span>Inspecionar Equipe & Desempenho</h3>
+                        <h3 style="margin-bottom: 2px; color: var(--cor-socio);">🔍 Inspecionar Equipe & Desempenho</h3>
                         <p style="font-size: 11px; color: var(--texto-suave);">Dossiê do colaborador, contratos, fechamento e ajustes</p>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px;">
@@ -962,11 +934,11 @@
                     <option value="">Selecione um funcionário...</option>
                 </select>
 
-                <div id="resultado-inspecao-colab" class="oculto" style="margin-top: 8px; background: var(--vidro-bg); padding: 14px; border-radius: 12px; border: 1px solid var(--vidro-borda);">
+                <div id="resultado-inspecao-colab" class="oculto" style="margin-top: 8px; background: var(--vidro-bg); padding: 14px; border-radius: 12px; border: var(--vidro-borda);">
                     <div id="inspecao-dados-financeiros" style="font-size: 12px; margin-bottom: 12px;"></div>
 
                     <!-- CONSUMO & VALES DESDE O ÚLTIMO FECHAMENTO -->
-                    <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--vidro-borda); margin-bottom: 12px;">
+                    <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 12px;">
                         <span style="font-size: 12px; font-weight: 800; color: var(--cor-primaria); display: block; margin-bottom: 6px;">🧾 Consumo & Vales (Desde o Último Fechamento)</span>
                         <div id="inspecao-lista-consumo-fechamento" style="display: flex; flex-direction: column; gap: 6px;">
                             <p class="status-texto" style="font-size: 11px; text-align: center;">Nenhum consumo ou vale em aberto registrado para este colaborador.</p>
@@ -979,7 +951,7 @@
                     </div>
 
                     <!-- MODIFICAR NOME / APELIDO & WHATSAPP -->
-                    <div id="bloco-modificar-nome-inspecao" class="oculto" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 10px;">
+                    <div id="bloco-modificar-nome-inspecao" class="oculto" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
                         <label style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">✏️ Alterar Nome / Apelido & WhatsApp</label>
                         <div class="flex-linha-mobile" style="margin-bottom: 6px;">
                             <input type="text" id="input-novo-nome-inspecao" placeholder="Novo nome..." style="font-size: 11px; padding: 6px; flex: 1.5;">
@@ -989,7 +961,7 @@
                     </div>
 
                     <!-- CONTRATO, ADMISSÃO, FOLGAS & REMUNERAÇÃO -->
-                    <div id="bloco-contrato-salario-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 10px;">
+                    <div id="bloco-contrato-salario-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
                         <span style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">📋 Contrato & Remuneração</span>
                         
                         <div class="flex-linha-mobile" style="margin-bottom: 6px;">
@@ -1034,7 +1006,7 @@
                     </div>
 
                     <!-- GESTÃO DE FALTA / FOLGA / ATESTADO -->
-                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 10px;">
+                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
                         <span style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 6px;">📅 Registo de Assiduidade (A partir de Hoje)</span>
                         <div style="display: flex; gap: 6px; margin-bottom: 6px;">
                             <select id="select-status-presenca-inspecao" style="font-size: 11px; padding: 6px;" onchange="window.alternarCamposPresencaInspecao(this.value)">
@@ -1056,7 +1028,7 @@
                     </div>
 
                     <!-- AJUSTAR PONTO -->
-                    <div id="bloco-ajuste-ponto-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 10px;">
+                    <div id="bloco-ajuste-ponto-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
                         <span style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">🛠️ Ajustar / Corrigir Ponto</span>
                         
                         <div style="display: flex; gap: 6px; margin-bottom: 6px;">
@@ -1090,18 +1062,18 @@
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;">
-                        <button class="btn-secundario" onclick="window.resetarSenhaColaboradorModal()" style="font-size: 11px; padding: 6px;">🔑 Reset Senha (1234)</button>
+                        <button class="btn-secundario" onclick="window.resetarSenhaColaboradorModal()" style="font-size: 11px; padding: 6px;">🔑 Recuperar acesso</button>
                         <button class="btn-secundario" onclick="window.removerFotoColaboradorModal()" style="font-size: 11px; padding: 6px;">🖼️ Remover Foto</button>
                     </div>
                     <div id="inspecao-botoes-quitar" style="margin-top: 8px;"></div>
-                    <button class="btn-erro" onclick="window.excluirColaboradorModal()" style="padding: 8px; font-size: 11px; margin-top: 8px;">🗑️ Excluir Funcionário</button>
+                    <button class="btn-erro" onclick="window.excluirColaboradorModal(document.getElementById('select-inspecionar-colab').value)" style="padding: 8px; font-size: 11px; margin-top: 8px;">🗑️ Excluir Funcionário</button>
                 </div>
             </section>
 
             <!-- EXTRAÇÃO DE RELATÓRIOS GERAIS (PDF COM NOME INTELIGENTE) -->
             <section class="cartao-geral cartao-admin">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h3 style="margin-bottom: 0;"><span class="pictograma tom-relatorios"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h17M8 15v-3m5 3V8m5 7v-5"/></svg></span>Extração de Relatórios</h3>
+                    <h3 style="margin-bottom: 0;">Extração de Relatórios</h3>
                 </div>
                 
                 <div class="form-insercao" style="background: transparent;">
@@ -1161,7 +1133,7 @@
         <div class="modal-conteudo">
             <div class="modal-header">
                 <div>
-                    <h3 style="margin-bottom: 2px; color: var(--cor-primaria);"><span class="pictograma tom-caixa"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18m-6 5h3"/></svg></span>Confirmar Fechamento de Caixa</h3>
+                    <h3 style="margin-bottom: 2px; color: var(--cor-primaria);">🔍 Confirmar Fechamento de Caixa</h3>
                     <p style="font-size: 11px; color: var(--texto-suave);">Revise os valores declarados antes da gravação final</p>
                 </div>
                 <button class="btn-secundario" onclick="window.fecharModalConferenciaCaixa()">✕</button>
@@ -1244,14 +1216,14 @@
         <div class="modal-conteudo">
             <div class="modal-header">
                 <div>
-                    <h3 style="margin-bottom: 2px;"><span class="pictograma tom-consumo"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v6q3 4 6 0V3M7 3v18m11 0V3q-6 7-3 10h3"/></svg></span>Cardápio de Consumo Interno</h3>
+                    <h3 style="margin-bottom: 2px;">📋 Cardápio de Consumo Interno</h3>
                     <p style="font-size: 11px; color: var(--texto-suave);">Itens sugeridos no consumo rápido da equipe</p>
                 </div>
                 <button class="btn-secundario" onclick="window.fecharModalGerenciarCardapio()">✕</button>
             </div>
 
             <!-- FORMULÁRIO DE ADIÇÃO DE NOVO ITEM AO CARDÁPIO -->
-            <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 12px;">
+            <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 12px;">
                 <span style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 6px;">+ Cadastrar Item no Catálogo</span>
                 <div class="flex-linha-mobile" style="margin-bottom: 6px;">
                     <input type="text" id="input-novo-item-cardapio-nome" placeholder="Nome do item (Ex: Coca-Cola Lata)" style="flex: 2; font-size: 12px;">
@@ -1272,7 +1244,7 @@
         <div class="modal-conteudo">
             <div class="modal-header">
                 <div>
-                    <h3 style="margin-bottom: 2px;"><span class="pictograma tom-tarefas"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8 12 3 3 5-6"/></svg></span>Inclusão de Tarefa Autônoma</h3>
+                    <h3 style="margin-bottom: 2px;">⚡ Inclusão de Tarefa Autônoma</h3>
                     <p style="font-size: 11px; color: var(--texto-suave);">Crie uma tarefa de manutenção que você realizou ou irá realizar</p>
                 </div>
                 <button class="btn-secundario" onclick="window.fecharModalTarefaAutonoma()">✕</button>
@@ -1285,7 +1257,7 @@
                 <label style="font-size: 11px; font-weight: 700; color: var(--cor-texto);">Observação / Instrução (Opcional)</label>
                 <textarea id="input-autonoma-obs" placeholder="Descreva observações ou detalhes importantes..." rows="2" style="margin-bottom: 10px;"></textarea>
 
-                <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: 1px solid var(--vidro-borda); margin-bottom: 12px;">
+                <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                         <span style="font-size: 11px; font-weight: 700; color: var(--cor-primaria);">Checklist de Subitens (Opcional)</span>
                         <button type="button" class="btn-secundario" onclick="window.adicionarCampoSubitemAutonomo()" style="padding: 2px 8px; font-size: 11px;">+ Item</button>
@@ -1342,7 +1314,7 @@
     <div id="modal-reordenar" class="modal-overlay oculto">
         <div class="modal-conteudo">
             <div class="modal-header">
-                <h3 id="titulo-modal-reordenar"><span class="pictograma tom-tarefas"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8 12 3 3 5-6"/></svg></span>Reordenar Tarefas</h3>
+                <h3 id="titulo-modal-reordenar">Reordenar Tarefas</h3>
                 <button class="btn-secundario" onclick="fecharModalReordenar()">✕</button>
             </div>
             <p style="font-size: 12px; color: var(--texto-suave); margin-bottom: 16px;">Toque, segure e arraste as tarefas para alterar a ordem de execução.</p>
@@ -1464,7 +1436,7 @@
     <!-- CARTÃO DE INSTALAÇÃO PWA -->
     <div id="pwa-install-card" class="oculto" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: var(--vidro-bg); padding: 18px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 2px solid var(--cor-primaria); z-index: 9999; text-align: center;">
         <h3 style="margin-bottom: 8px; color: var(--cor-primaria); font-size: 16px;">Instalar App Suiri</h3>
-        <p style="font-size: 12px; margin-bottom: 16px; color: var(--texto-suave);">Adicione à tela inicial para acesso rápido e notificações.</p>
+        <p style="font-size: 12px; margin-bottom: 16px; color: var(--texto-suave);">Adicione à tela inicial para abrir o Suiri com mais facilidade.</p>
         <div style="display: flex; gap: 8px;">
             <button id="btn-pwa-cancelar" class="btn-secundario" style="flex: 1; padding: 10px;">Agora não</button>
             <button id="btn-pwa-instalar" class="btn-principal" style="flex: 1; margin-top: 0; padding: 10px;">Instalar</button>
@@ -1472,9 +1444,12 @@
     </div>
 
     <!-- CONEXÃO COM OS ARQUIVOS JAVASCRIPT DIVIDIDOS (ARQUITETURA SUIRI 2.0) -->
-    <script src="app-core.js"></script>
-    <script src="app-operacional.js"></script>
-    <script src="app-gestao.js"></script>
+    <script src="app-core.js?v=4"></script>
+    <script src="app-operacional.js?v=4"></script>
+    <script src="app-gestao.js?v=4"></script>
+    <script src="cardapio-original.js"></script>
+    <script src="app-empresa.js"></script>
+    <script src="visual-suiri.js?v=4.1"></script>
 
     <!-- REGISTRO DO SERVICE WORKER (PWA) PROTEGIDO CONTRA ERRO FILE:// -->
     <script>

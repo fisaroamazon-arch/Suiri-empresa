@@ -1,14 +1,14 @@
 {
-  "id": "/",
-  "name": "Sabor da Costa",
-  "short_name": "Sabor da Costa",
+  "id": "./",
+  "name": "Suiri Empresas",
+  "short_name": "Suiri",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#EEF4F2",
   "theme_color": "#0F4C5C",
-  "description": "Sistema Operacional e Gestão - Suiri",
+  "description": "Pessoas, operação e negócios no mesmo lugar.",
   "icons": [
     {
       "src": "./icon-192x192.png",

@@ -18,8 +18,14 @@ var cliente = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPAB
 // Função utilitária de escape contra XSS
 var esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+window.dataLocal = function(d = new Date()) {
+    return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+};
+window.dataInstanteLocal = function(valor) { return valor ? window.dataLocal(new Date(valor)) : ''; };
+window.atributoJS = value => esc(JSON.stringify(String(value ?? '')));
+
 // ÁUDIO NATIVO (Sons de clique, conclusão e alertas via Web Audio API)
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
 
 window.somIniciarTarefa = function() {
     try {
@@ -94,99 +100,108 @@ let cropZoom = 1.0;
 // =========================================================================
 // FILA DE SINCRONIZAÇÃO OFFLINE
 // =========================================================================
-const fusoEmpresa = 'America/Sao_Paulo';
-const calendarioEmpresa = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: fusoEmpresa, year: 'numeric', month: '2-digit', day: '2-digit'
-});
-function diaEmpresa(data = new Date()) { return calendarioEmpresa.format(data); }
+const CHAVE_STORAGE_OFFLINE = 'suiri_offline_queue_v2';
 
-function prefixoFila() {
-    return usuarioAtual && perfilAtual ? 'suiri:pendencia:' + (empresaAtualId || 'individual') + ':' + usuarioAtual.id + ':' : '';
-}
-function obterFilaOffline() {
-    const prefixo = prefixoFila();
-    if (!prefixo) return [];
-    return Object.keys(localStorage).filter(k => k.startsWith(prefixo))
-        .map(k => JSON.parse(localStorage.getItem(k))).sort((a,b) => a.timestamp - b.timestamp);
-}
-function temFilaAnterior() {
-    const antiga = localStorage.getItem('suiri_offline_queue');
-    return antiga && antiga !== '[]';
-}
-function atualizarIndicadorOffline() {
-    const el = document.getElementById('banner-offline-status');
-    const fila = obterFilaOffline();
-    const revisao = fila.find(item => item.revisar);
-    const antiga = prefixoFila() && temFilaAnterior();
-    const texto = revisao ? 'Envio precisa de conferência' : fila.length ? fila.length + ' pendência(s) salva(s) neste aparelho'
-        : antiga ? 'Há registros da versão anterior para conferir' : navigator.onLine ? '' : 'Sem conexão';
-    el.classList.toggle('oculto', !texto);
-    document.getElementById('texto-offline-status').textContent = texto;
-    document.getElementById('revisar-envio').hidden = !revisao && !antiga;
-}
-function conferirEnvio() {
-    const item = obterFilaOffline().find(i => i.revisar);
-    if (!item) return alert('A fila da versão anterior foi preservada neste aparelho. Confira os registros com a gestão antes de qualquer reenvio. A versão anterior não identificava a conta responsável.');
-    if (confirm('Confira o histórico antes de retirar esta pendência. Operação: ' + item.tipo + ' • ' + new Date(item.timestamp).toLocaleString('pt-BR') + '. ' + item.revisar + ' Já conferiu e deseja retirar o lembrete?')) {
-        localStorage.removeItem(item.chave);
-        atualizarIndicadorOffline();
-        processarFilaOffline();
-    }
-}
-async function executarOuOffline(tipo, payload, funcaoOnline) {
-    if (navigator.onLine) {
-        try { return await funcaoOnline(); }
-        catch (error) { return {error}; }
-    }
+window.obterFilaOffline = function() {
     try {
-        const prefixo = prefixoFila();
-        if (!prefixo) throw Error('Entre na conta antes de registrar.');
-        const chave = prefixo + crypto.randomUUID();
-        localStorage.setItem(chave, JSON.stringify({chave, tipo, payload, timestamp: Date.now()}));
-        atualizarIndicadorOffline();
-        return {offline:true};
-    } catch (error) { return {error}; }
-}
-let sincronizacaoAtual;
-function processarFilaOffline() {
-    if (!navigator.onLine || !cliente || !obterFilaOffline().length) return Promise.resolve();
-    if (sincronizacaoAtual) return sincronizacaoAtual;
-    const prefixo = prefixoFila();
-    async function enviar() {
-        for (const item of obterFilaOffline()) {
-            if (prefixo !== prefixoFila() || !navigator.onLine || item.revisar) break;
-            // Reserva antes de enviar: uma interrupção exige conferência antes de repetir.
-            item.revisar = 'O recebimento ainda não foi confirmado.';
-            localStorage.setItem(item.chave, JSON.stringify(item));
-            try {
-                let error;
-            if (item.tipo === 'ponto') ({ error } = await (item.payload.id ? cliente.from('livro_ponto').update({horario_saida:item.payload.horario_saida, status_turno:item.payload.status_turno}).eq('id',item.payload.id) : cliente.from('livro_ponto').insert([item.payload])));
+        const raw = localStorage.getItem(CHAVE_STORAGE_OFFLINE);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+};
+
+window.salvarFilaOffline = function(fila) {
+    try {
+        localStorage.setItem(CHAVE_STORAGE_OFFLINE, JSON.stringify(fila));
+        window.atualizarIndicadorOffline();
+    } catch (e) {}
+};
+
+window.adicionarFilaOffline = function(tipo, payload) {
+    const fila = window.obterFilaOffline();
+    fila.push({
+        idLocal: 'off_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        tipo: tipo,
+        payload: payload,
+        timestamp: new Date().toISOString()
+    });
+    window.salvarFilaOffline(fila);
+    window.mostrarToast("Sem conexão. Ação salva no celular e enviada ao reconectar!", "info");
+};
+
+window.atualizarIndicadorOffline = function() {
+    const banner = document.getElementById('banner-offline-status');
+    const texto = document.getElementById('texto-offline-status');
+    const fila = window.obterFilaOffline();
+    const online = navigator.onLine;
+
+    if (!banner) return;
+    if (!online || fila.length > 0) {
+        banner.classList.remove('oculto');
+        if (!online) {
+            if (texto) texto.textContent = fila.length > 0 
+                ? `Offline: ${fila.length} ação(ões) pendente(s) de envio` 
+                : 'Sem conexão com a internet';
+        } else {
+            if (texto) texto.textContent = `Sincronizando ${fila.length} alteração(ões) pendente(s)...`;
+        }
+    } else {
+        banner.classList.add('oculto');
+    }
+};
+
+window.processarFilaOffline = async function() {
+    if (!navigator.onLine || !cliente) return;
+    const fila = window.obterFilaOffline();
+    if (fila.length === 0) return;
+
+    const filaRestante = [];
+    let enviadasComSucesso = 0;
+
+    for (const item of fila) {
+        try {
+            let error = null;
+            if (item.tipo === 'ponto') ({ error } = await cliente.from('livro_ponto').upsert([item.payload]));
             else if (item.tipo === 'tarefa_update') ({ error } = await cliente.from('tarefas').update(item.payload.dados).eq('id', item.payload.id));
             else if (item.tipo === 'tarefa_insert') ({ error } = await cliente.from('tarefas').insert([item.payload]));
             else if (item.tipo === 'consumo_insert') ({ error } = await cliente.from('itens_comprados').insert([item.payload]));
             else if (item.tipo === 'vale_insert') ({ error } = await cliente.from('vales').insert([item.payload]));
-            else if (item.tipo === 'aviso_diaria') ({error} = await cliente.from('avisos').insert([item.payload]));
             else if (item.tipo === 'aviso_leitura') ({ error } = await cliente.from('avisos').update({ lidos_por: item.payload.lidos_por }).eq('id', item.payload.id));
             else if (item.tipo === 'fechamento_caixa_insert') ({ error } = await cliente.from('fechamento_caixa').insert([item.payload]));
 
-            else throw Error('Operação desconhecida.');
-                if (error) throw error;
-                localStorage.removeItem(item.chave);
-            } catch (erro) {
-                item.revisar = erro.message || 'Verifique o registro no histórico.';
-                localStorage.setItem(item.chave, JSON.stringify(item));
-                break;
-            }
+            if (error) filaRestante.push(item);
+            else enviadasComSucesso++;
+        } catch (err) {
+            filaRestante.push(item);
         }
     }
-    const processo = navigator.locks ? navigator.locks.request(prefixo, enviar) : enviar();
-    sincronizacaoAtual = processo.finally(() => {
-        sincronizacaoAtual = null;
-        atualizarIndicadorOffline();
-        if (prefixo === prefixoFila() && window.carregarStatusPonto) window.carregarStatusPonto();
-    });
-    return sincronizacaoAtual;
-}
+
+    window.salvarFilaOffline(filaRestante);
+    if (enviadasComSucesso > 0) {
+        window.mostrarToast(`Sincronização concluída! (${enviadasComSucesso} ações enviadas)`);
+        if (typeof window.carregarTarefas === 'function') window.carregarTarefas();
+        if (typeof window.carregarStatusPonto === 'function') window.carregarStatusPonto();
+        if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
+        if (typeof window.carregarFechamentoCaixaAtual === 'function') window.carregarFechamentoCaixaAtual();
+    }
+};
+
+window.executarOuOffline = async function(tipo, payload, funcaoOnline) {
+    if (!navigator.onLine) {
+        window.adicionarFilaOffline(tipo, payload);
+        return { offline: true };
+    }
+    try {
+        const res = await funcaoOnline();
+        if (res && res.error) {
+            window.adicionarFilaOffline(tipo, payload);
+            return { offline: true, error: res.error };
+        }
+        return res || { success: true };
+    } catch (e) {
+        window.adicionarFilaOffline(tipo, payload);
+        return { offline: true };
+    }
+};
 
 window.addEventListener('online', () => { window.atualizarIndicadorOffline(); window.processarFilaOffline(); });
 window.addEventListener('offline', () => { window.atualizarIndicadorOffline(); });
@@ -212,8 +227,8 @@ window.atualizarDadosGeral = async function() {
 
     try {
         await Promise.all(promessas);
-        await window.processarFilaOffline();
-        window.mostrarToast(obterFilaOffline().length ? "Há envios pendentes de confirmação." : navigator.onLine ? "Atualização concluída." : "Sem conexão.", "info");
+        window.processarFilaOffline();
+        window.mostrarToast("Dados sincronizados com sucesso!");
     } catch (e) {
         window.mostrarToast("Atualização concluída com avisos.", "info");
     }
@@ -323,7 +338,7 @@ window.ajustarTextoValePorSocio = function(funcId) {
 window.lancarVale = async function() {
     const funcId = document.getElementById('select-func-vale')?.value;
     const valor = parseFloat(document.getElementById('input-valor-vale')?.value);
-    const dataVale = document.getElementById('input-data-vale')?.value || diaEmpresa(new Date());
+    const dataVale = document.getElementById('input-data-vale')?.value || window.dataLocal();
     const obs = document.getElementById('input-obs-vale')?.value.trim();
 
     if(!funcId || isNaN(valor) || valor <= 0) return window.mostrarToast("Selecione o funcionário e um valor válido.", "erro");
@@ -355,12 +370,12 @@ window.lancarItemComprado = async function() {
     const unit = parseFloat(document.getElementById('input-val-unit')?.value);
     const desc = parseFloat(document.getElementById('input-desc-pct')?.value) || 0;
     const final = parseFloat(document.getElementById('input-val-final')?.value);
-    const dataCompra = document.getElementById('input-data-compra')?.value || diaEmpresa(new Date());
+    const dataCompra = document.getElementById('input-data-compra')?.value || window.dataLocal();
 
     if(!descItem || isNaN(unit)) return window.mostrarToast("Preencha a descrição e o valor do item.", "erro");
 
     const payload = {
-        perfil_id: funcId, empresa_id: empresaAtualId, descricao_item: descItem, valor_unitario: unit, porcentagem_desconto: desc, valor_final: final, data_compra: dataCompra, registrado_por: funcId
+        perfil_id: funcId, empresa_id: empresaAtualId, descricao_item: descItem, valor_unitario: unit, porcentagem_desconto: desc, valor_final: final, data_compra: dataCompra, registrado_por: usuarioAtual.id
     };
 
     const res = await window.executarOuOffline('consumo_insert', payload, () => cliente.from('itens_comprados').insert([payload]));
@@ -568,7 +583,7 @@ window.fecharPainelPerfil = function() {
         : (isSocio ? (perfilAtual?.permissoes_socio || []) 
         : (isGerente ? (perfilAtual?.permissoes_gerente || []) : []));
 
-    const podeVerGestao = isAdmin || permissoes.includes('gestao') || permissoes.includes('compras') || permissoes.includes('contas');
+    const podeVerGestao = isAdmin || permissoes.includes('gestao') || permissoes.includes('compras') || permissoes.includes('contas') || permissoes.includes('financeiro') || permissoes.includes('fechar_caixa') || !!perfilAtual?.pode_fechar_caixa;
     const podeVerRelatorios = isAdmin || permissoes.includes('relatorios');
     const podeVerPainel = isAdmin || isSocio || permissoes.includes('inspecao');
 
@@ -630,7 +645,7 @@ window.alternarTelas = function(tela) {
         : (isSocio ? (perfilAtual?.permissoes_socio || []) 
         : (isGerente ? (perfilAtual?.permissoes_gerente || []) : []));
 
-    const podeVerGestao = isAdmin || permissoes.includes('gestao') || permissoes.includes('compras') || permissoes.includes('contas');
+    const podeVerGestao = isAdmin || permissoes.includes('gestao') || permissoes.includes('compras') || permissoes.includes('contas') || permissoes.includes('financeiro') || permissoes.includes('fechar_caixa') || !!perfilAtual?.pode_fechar_caixa;
     const podeVerRelatorios = isAdmin || permissoes.includes('relatorios');
     const podeVerPainel = isAdmin || isSocio || permissoes.includes('inspecao');
 
@@ -735,7 +750,7 @@ window.solicitarRedefinicaoSenhaEmail = async function() {
     const email = document.getElementById('input-email-recuperacao')?.value.toLowerCase().trim();
     if (!email) return window.mostrarToast("Introduza o seu e-mail cadastrado.", "erro");
 
-    const { error } = await cliente.auth.resetPasswordForEmail(email);
+    const { error } = await cliente.auth.resetPasswordForEmail(email,{redirectTo:location.href.split('#')[0].split('?')[0]});
     if (error) {
         window.mostrarToast("Erro ao enviar: " + error.message, "erro");
     } else {
@@ -769,13 +784,13 @@ window.prepararTelaAdministracao = function() {
     selSetorFunc.innerHTML = '<option value="">Colaborador</option>';
 
     Object.values(mapaPerfis).forEach(p => {
-        let papel = 'Staff';
+        let papel = 'Funcionário';
         if (p.is_admin) papel = 'Admin';
         else if (p.is_socio) papel = 'Sócio';
         else if (p.is_gerente) papel = 'Gerente';
 
         const permCaixaStr = p.pode_fechar_caixa ? ' • 💵 Caixa' : '';
-        selColab.innerHTML += `<option value="${p.id}">${esc(p.nome)} (${papel} - ${p.setor || 'Sem setor'}${permCaixaStr})</option>`;
+        selColab.innerHTML += `<option value="${p.id}">${esc(p.nome)} (${papel} - ${esc(p.setor || 'Sem setor')}${permCaixaStr})</option>`;
         selSetorFunc.innerHTML += `<option value="${p.id}">${esc(p.nome)}</option>`;
     });
 
@@ -882,7 +897,7 @@ window.revogarTodosCargosModal = async function() {
     const id = selColab?.value;
     if (!id) return window.mostrarToast("Selecione um funcionário.", "erro");
 
-    if (!confirm("Revogar todos os cargos e permissões deste colaborador (retornar a Staff simples)?")) return;
+    if (!confirm("Revogar todos os cargos e permissões deste colaborador (retornar a funcionário sem permissões administrativas)?")) return;
 
     const payload = {
         is_gerente: false,
@@ -1078,7 +1093,7 @@ window.inspecionarColaborador = async function(colabId) {
                     </div>
                     <div style="text-align:right;">
                         <strong style="color:${item.tipo === 'vale' ? 'var(--cor-erro)' : 'var(--cor-primaria)'}; display:block; font-size:12px;">R$ ${item.valor_final.toFixed(2)}</strong>
-                        <button class="btn-editar-consumo" onclick="window.abrirModalEditarItem('${item.id}', '${esc(item.descricao)}', ${item.valor_unitario}, ${item.desconto_pct}, '${item.tipo}', '${item.data}')">✏️ Editar</button>
+                        <button class="btn-editar-consumo" onclick="window.abrirModalEditarItem('${item.id}', ${window.atributoJS(item.descricao)}, ${item.valor_unitario}, ${item.desconto_pct}, '${item.tipo}', '${item.data}')">✏️ Editar</button>
                     </div>
                 `;
                 listaConsumoFechamento.appendChild(linha);
@@ -1116,7 +1131,7 @@ window.inspecionarColaborador = async function(colabId) {
     }
 
     const dataInput = document.getElementById('input-ajuste-ponto-data');
-    const hoje = diaEmpresa(new Date());
+    const hoje = window.dataLocal();
     if (dataInput) {
         dataInput.value = hoje;
         window.carregarPontoDataInspecao(hoje);
@@ -1321,18 +1336,8 @@ window.salvarAjustePontoInspecao = async function() {
 };
 
 // Reset de senha simples
-window.resetarSenhaColaboradorModal = async function() {
-    const colabId = document.getElementById('select-inspecionar-colab')?.value;
-    if (!colabId) return window.mostrarToast("Selecione um colaborador.", "erro");
-
-    if (!confirm("Redefinir a senha deste funcionário para '1234'? (Seus vales e histórico permanecerão intactos)")) return;
-
-    const { error } = await cliente.rpc('reset_user_password_admin', { user_id: colabId, new_password: '1234' });
-    if (error) {
-        window.mostrarToast("Nota: Execute a função SQL de reset ou notifique o colaborador (1234).", "info");
-    } else {
-        window.mostrarToast("Senha redefinida com sucesso para '1234'!");
-    }
+window.resetarSenhaColaboradorModal = function() {
+    window.mostrarToast('Peça ao colaborador para usar “Esqueci minha senha” na tela de entrada. A redefinição é enviada ao e-mail dele.', 'info');
 };
 
 // Remover foto de perfil
@@ -1396,7 +1401,7 @@ window.atualizarPropriaSenha = async function() {
     const p1 = document.getElementById('input-nova-senha-perfil')?.value;
     const p2 = document.getElementById('input-confirma-senha-perfil')?.value;
 
-    if (!p1 || p1.length < 4) return window.mostrarToast("A senha deve ter no mínimo 4 dígitos.", "erro");
+    if (!p1 || p1.length < 8) return window.mostrarToast("A senha deve ter no mínimo 8 caracteres.", "erro");
     if (p1 !== p2) return window.mostrarToast("As senhas não coincidem.", "erro");
 
     const { error } = await cliente.auth.updateUser({ password: p1 });
@@ -1529,15 +1534,16 @@ window.salvarDadosEmpresa = async function() {
 
     if (!nome) return window.mostrarToast("O nome da empresa é obrigatório.", "erro");
 
-    const payload = { nome_empresa: nome, nome_fantasia: nome, cnpj: cnpj, telefone: telefone, endereco: endereco };
+    if (!perfilAtual?.is_admin) return window.mostrarToast('Apenas administradores podem editar a empresa.', 'erro');
+    const payload = { nome_fantasia: nome, telefone, endereco };
+    if (window.normalizarCNPJ(cnpj) !== window.normalizarCNPJ(dadosEmpresaAtual?.cnpj)) return window.mostrarToast('O CNPJ é a identidade da empresa e não pode ser trocado aqui.', 'erro');
 
     let resError = null;
     if (empresaAtualId) {
         const { error } = await cliente.from('empresas').update(payload).eq('id', empresaAtualId);
         resError = error;
     } else {
-        const { error } = await cliente.from('configuracoes_empresa').upsert([{ id: 1, ...payload }]);
-        resError = error;
+        resError = {message: 'Empresa não vinculada.'};
     }
 
     if (resError) {
@@ -1554,10 +1560,6 @@ window.carregarDadosEmpresa = async function() {
     let dados = null;
     if (empresaAtualId) {
         const { data } = await cliente.from('empresas').select('*').eq('id', empresaAtualId).maybeSingle();
-        dados = data;
-    }
-    if (!dados) {
-        const { data } = await cliente.from('configuracoes_empresa').select('*').limit(1).maybeSingle();
         dados = data;
     }
     dadosEmpresaAtual = dados || { nome_empresa: 'Suiri', nome_fantasia: 'Suiri' };
@@ -1591,13 +1593,13 @@ window.renderizarPainelPerfilCompleto = async function() {
         if (t.status === 'concluida' && (souDono || souAjudante)) {
             numConcluidas++;
             const item = document.createElement('div');
-            item.style.cssText = "background:var(--vidro-bg); padding:8px; border-radius:6px; font-size:12px; margin-bottom:4px; border:1px solid var(--vidro-borda);";
+            item.style.cssText = "background:var(--vidro-bg); padding:8px; border-radius:6px; font-size:12px; margin-bottom:4px; border:var(--vidro-borda);";
             item.innerHTML = `<strong>${esc(t.titulo)}</strong> - <span style="color:var(--cor-sucesso); font-weight:700;">Concluída</span>`;
             contConcluidas.appendChild(item);
         } else if ((t.status === 'pendente' || t.status === 'em_andamento') && (souDono || souAjudante || atribuidaAMim)) {
             numAbertas++;
             const item = document.createElement('div');
-            item.style.cssText = "background:var(--vidro-bg); padding:8px; border-radius:6px; font-size:12px; margin-bottom:4px; border:1px solid var(--vidro-borda);";
+            item.style.cssText = "background:var(--vidro-bg); padding:8px; border-radius:6px; font-size:12px; margin-bottom:4px; border:var(--vidro-borda);";
             item.innerHTML = `<strong>${esc(t.titulo)}</strong> - <span style="color:var(--cor-alerta); font-weight:700;">Em Andamento/Pendente</span>`;
             contAbertas.appendChild(item);
         }
@@ -1656,7 +1658,7 @@ window.renderizarPainelPerfilCompleto = async function() {
         if (elTagContrato) elTagContrato.textContent = 'Freelancer';
         if (elLabelRemuneracao) elLabelRemuneracao.textContent = 'Diárias Acumuladas (Mês)';
 
-        const inicioMesStr = diaEmpresa().slice(0, 7) + '-01';
+        const inicioMesStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
         
         const { data: pontosMes } = await cliente.from('livro_ponto')
             .select('*')
@@ -1750,7 +1752,7 @@ window.carregarFinanceiroSeparado = async function() {
                 </div>
                 <div style="text-align:right;">
                     <strong style="color:${corValor}; font-size:12px; display:block; margin-bottom:2px;">R$ ${item.valor.toFixed(2)}</strong>
-                    <button class="btn-editar-consumo" onclick="window.abrirModalEditarItem('${item.id}', '${esc(item.descricao)}', ${item.valor}, 0, '${item.tipo}', '${item.data}')">✏️ Editar</button>
+                    <button class="btn-editar-consumo" onclick="window.abrirModalEditarItem('${item.id}', ${window.atributoJS(item.descricao)}, ${item.valor}, 0, '${item.tipo}', '${item.data}')">✏️ Editar</button>
                 </div>
             </div>
         `;
@@ -1774,7 +1776,7 @@ window.registrarConsumoProprio = async function() {
 
     const valorTotalOriginal = valorUnit * qtd;
     const valorFinal = valorTotalOriginal - (valorTotalOriginal * 0.30);
-    const hoje = diaEmpresa(new Date());
+    const hoje = window.dataLocal();
     const descFormatada = qtd > 1 ? `${qtd}x ${desc}` : desc;
 
     const payload = {
@@ -1817,7 +1819,7 @@ window.abrirModalEditarItem = function(id, desc, valor, pct_desc, tipo = 'compra
 
     if (elId) elId.value = id;
     if (elTipo) elTipo.value = tipo;
-    if (elData) elData.value = dataReg || diaEmpresa(new Date());
+    if (elData) elData.value = dataReg || window.dataLocal();
     if (elDesc) elDesc.value = desc;
     if (elVal) elVal.value = valor;
     if (elPct) elPct.value = pct_desc || 0;
@@ -1849,7 +1851,7 @@ window.calcularEditFinal = function() {
 window.salvarEdicaoItem = async function() {
     const id = document.getElementById('edit-item-id')?.value;
     const tipo = document.getElementById('edit-item-tipo')?.value || 'compra';
-    const dataReg = document.getElementById('edit-item-data')?.value || diaEmpresa(new Date());
+    const dataReg = document.getElementById('edit-item-data')?.value || window.dataLocal();
     const desc = document.getElementById('edit-item-desc')?.value.trim();
     const v = parseFloat(document.getElementById('edit-item-valor')?.value) || 0;
     const d = tipo === 'vale' ? 0 : (parseFloat(document.getElementById('edit-item-desc-pct')?.value) || 0);
@@ -1943,12 +1945,12 @@ function garantirModalValidacaoCNPJ() {
             </p>
             <div class="input-group" style="margin-bottom: 10px;">
                 <label for="input-onboarding-cnpj" style="font-size: 11px; font-weight: 700;">CNPJ da Empresa</label>
-                <input type="text" id="input-onboarding-cnpj" placeholder="00.000.000/0000-00" maxlength="18">
+                <input type="text" id="input-onboarding-cnpj" placeholder="00.000.000/0000-00" maxlength="18" autocapitalize="characters">
             </div>
-            <p id="msg-erro-onboarding-cnpj" class="mensagem-erro oculto" style="margin-bottom: 10px;"></p>
+            <p id="onboarding-empresa-encontrada" class="empresa-encontrada oculto" aria-live="polite"></p><p id="msg-erro-onboarding-cnpj" class="mensagem-erro oculto" style="margin-bottom: 10px;"></p>
             <div style="display: flex; gap: 8px;">
                 <button type="button" class="btn-secundario" id="btn-voltar-onboarding-cnpj" style="flex: 1;">Voltar</button>
-                <button type="button" class="btn-principal" id="btn-confirmar-onboarding-cnpj" style="flex: 2; margin-top: 0;">Validar e Criar Conta</button>
+                <button type="button" class="btn-principal" id="btn-confirmar-onboarding-cnpj" style="flex: 2; margin-top: 0;">Buscar empresa</button>
             </div>
         </div>
     `;
@@ -1964,7 +1966,7 @@ function abrirModalValidacaoCNPJ() {
     const modal = garantirModalValidacaoCNPJ();
     const inCnpj = document.getElementById('input-onboarding-cnpj');
     const msgErro = document.getElementById('msg-erro-onboarding-cnpj');
-    if (inCnpj) inCnpj.value = '';
+    if (inCnpj) inCnpj.value = ''; window.cnpjConfirmado = null; document.getElementById('onboarding-empresa-encontrada')?.classList.add('oculto');
     if (msgErro) msgErro.classList.add('oculto');
     modal.classList.remove('oculto');
 }
@@ -1981,122 +1983,66 @@ function fecharModalValidacaoCNPJ() {
 }
 
 async function consultarDadosCNPJReceita(cnpjLimpo) {
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
     try {
-        const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-        if (!resp.ok) return null;
-        return await resp.json();
-    } catch (e) {
-        return null;
-    }
+        const resp=await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`,{signal:controller.signal});
+        if(!resp.ok)return null;return await resp.json();
+    } catch {return null;} finally {clearTimeout(timeout);}
 }
 
 async function confirmarValidacaoCNPJeCriarConta() {
-    const inCnpj = document.getElementById('input-onboarding-cnpj');
-    const btnConfirmar = document.getElementById('btn-confirmar-onboarding-cnpj');
-    const msgErro = document.getElementById('msg-erro-onboarding-cnpj');
-
-    if (msgErro) msgErro.classList.add('oculto');
-
-    const cnpjDig = (inCnpj?.value || '').replace(/\D/g, '');
-    if (!cnpjDig || cnpjDig.length !== 14) {
-        if (msgErro) {
-            msgErro.textContent = 'Informe um CNPJ válido com 14 dígitos.';
-            msgErro.classList.remove('oculto');
-        }
-        window.somErro();
-        return;
+    const btn = document.getElementById('btn-confirmar-onboarding-cnpj');
+    const erro = document.getElementById('msg-erro-onboarding-cnpj');
+    const cnpj = window.normalizarCNPJ(document.getElementById('input-onboarding-cnpj')?.value);
+    erro.classList.add('oculto');
+    if (!window.validarCNPJ(cnpj)) {
+        erro.textContent = 'Confira o CNPJ: ele deve ter 14 caracteres e dígitos verificadores válidos.';
+        erro.classList.remove('oculto'); return;
     }
-
-    if (!dadosPreCadastroTemporario) {
+    if (!dadosPreCadastroTemporario) return fecharModalValidacaoCNPJ();
+    btn.disabled = true;
+    try {
+        btn.textContent = 'Buscando dados da empresa…';
+        const dados = window.cnpjConfirmado===cnpj ? window.cnpjDadosConfirmados : await consultarDadosCNPJReceita(cnpj);
+        if (!dados) throw new Error('Não foi possível consultar esse CNPJ. Confira o número ou tente novamente em instantes. Nenhuma empresa foi criada.');
+        const nomeEmpresa = (dados.nome_fantasia || dados.razao_social || '').trim();
+        if (!nomeEmpresa) throw new Error('A consulta não retornou o nome da empresa. Tente novamente.');
+        const info = document.getElementById('onboarding-empresa-encontrada');
+        if (!window.cnpjConfirmado || window.cnpjConfirmado !== cnpj) {
+            info.textContent = nomeEmpresa + ' • ' + (dados.municipio || '') + '/' + (dados.uf || '');
+            info.classList.remove('oculto'); window.cnpjConfirmado = cnpj; window.cnpjDadosConfirmados=dados;
+            btn.textContent = 'Confirmar empresa e criar conta'; return;
+        }
+        const {email, senha, nome} = dadosPreCadastroTemporario;
+        const {data:versaoBanco,error:erroVersao}=await cliente.rpc('suiri_versao');
+        if(erroVersao || versaoBanco!==4)throw new Error('Instale primeiro a atualização do banco V4 incluída no ZIP.');
+        btn.textContent = 'Criando conta…'; window.cadastroEmAndamento = true;
+        const {data, error} = await cliente.auth.signUp({email, password: senha, options: {
+            emailRedirectTo: location.href.split('#')[0].split('?')[0],
+            data: {nome, suiri_cnpj: cnpj, suiri_empresa: {
+                nome_fantasia: nomeEmpresa, razao_social: dados.razao_social || nomeEmpresa,
+                telefone: dados.ddd_telefone_1 || '',
+                endereco: [dados.logradouro, dados.numero, dados.bairro, dados.municipio, dados.uf].filter(Boolean).join(', ')
+            }}
+        }});
+        if (error) throw error;
+        if (!data?.user || data.user.identities?.length === 0) throw new Error('Esse e-mail já pode estar cadastrado. Entre na sua conta ou recupere a senha.');
         fecharModalValidacaoCNPJ();
-        return;
-    }
-
-    if (btnConfirmar) {
-        btnConfirmar.disabled = true;
-        btnConfirmar.textContent = 'Consultando Receita...';
-    }
-
-    let dadosReceita = await consultarDadosCNPJReceita(cnpjDig);
-    const nomeEmpresaExtraido = (dadosReceita?.nome_fantasia || dadosReceita?.razao_social || 'Empresa ' + cnpjDig).trim();
-    const telefoneExtraido = dadosReceita?.ddd_telefone_1 || '';
-    const enderecoExtraido = dadosReceita ? `${dadosReceita.logradouro || ''}, ${dadosReceita.numero || ''} - ${dadosReceita.bairro || ''}, ${dadosReceita.municipio || ''}/${dadosReceita.uf || ''}`.trim() : '';
-
-    if (btnConfirmar) btnConfirmar.textContent = 'Registrando Empresa...';
-
-    // 1. GARANTIR A INSERÇÃO NA TABELA EMPRESAS ANTES DO USUÁRIO
-    let empresaIdFinal = null;
-    const { data: empExistente } = await cliente.from('empresas').select('id, cnpj').eq('cnpj', cnpjDig).maybeSingle();
-
-    if (empExistente) {
-        empresaIdFinal = empExistente.id;
-    } else {
-        const { data: novaEmp, error: erroNovaEmp } = await cliente.from('empresas').insert([{
-            nome_fantasia: nomeEmpresaExtraido,
-            razao_social: dadosReceita?.razao_social || nomeEmpresaExtraido,
-            cnpj: cnpjDig,
-            telefone: telefoneExtraido,
-            endereco: enderecoExtraido
-        }]).select('id').maybeSingle();
-
-        if (erroNovaEmp) {
-            if (msgErro) {
-                msgErro.textContent = 'Erro ao registar empresa: ' + erroNovaEmp.message;
-                msgErro.classList.remove('oculto');
-            }
-            if (btnConfirmar) {
-                btnConfirmar.disabled = false;
-                btnConfirmar.textContent = 'Validar e Criar Conta';
-            }
-            window.somErro();
-            return;
+        if (!data.session) {
+            modoCadastro = true; window.alternarModoCadastro();
+            window.mostrarToast('Confirme o e-mail recebido e depois entre. A empresa e o cargo da sua conta já foram reservados.', 'info');
+            document.getElementById('senha').value = ''; return;
         }
-        if (novaEmp) empresaIdFinal = novaEmp.id;
-    }
-
-    // 2. CRIAR O UTILIZADOR NO SUPABASE AUTH
-    if (btnConfirmar) btnConfirmar.textContent = 'Criando Usuário...';
-    const { email, senha, nome, setor } = dadosPreCadastroTemporario;
-
-    const { data: authData, error: authError } = await cliente.auth.signUp({ email, password: senha });
-    if (authError) {
-        if (msgErro) {
-            msgErro.textContent = 'Erro ao criar conta: ' + authError.message;
-            msgErro.classList.remove('oculto');
-        }
-        if (btnConfirmar) {
-            btnConfirmar.disabled = false;
-            btnConfirmar.textContent = 'Validar e Criar Conta';
-        }
-        window.somErro();
-        return;
-    }
-
-    if (authData?.user) {
-        // 3. VINCULAR PERFIL: O 1º utilizador entra como Administrador puro (is_admin: true, is_socio: false)
-        const perfilNovo = {
-            id: authData.user.id,
-            nome: nome || 'Administrador',
-            setor: setor || 'frente',
-            is_admin: true,
-            is_socio: false,
-            cargo: 'adm',
-            pode_fechar_caixa: true,
-            empresa_id: empresaIdFinal
-        };
-
-        const { error: erroPerfil } = await cliente.from('perfis').upsert([perfilNovo]);
-        if (erroPerfil) {
-            console.error("Erro ao vincular perfil:", erroPerfil.message);
-        }
-
-        usuarioAtual = authData.user;
-        perfilAtual = perfilNovo;
-        empresaAtualId = empresaIdFinal;
-
-        fecharModalValidacaoCNPJ();
-        window.mostrarToast(`Conta criada e vinculada a ${nomeEmpresaExtraido}!`);
+        usuarioAtual = data.user;
         await window.iniciarApp();
+    } catch(e) {
+        erro.textContent = e.message || 'Falha ao criar conta. Tente novamente.';
+        erro.classList.remove('oculto');
+    } finally {
+        window.cadastroEmAndamento = false;
+        btn.disabled = false;
+        if (!window.cnpjConfirmado) btn.textContent = 'Buscar empresa';
+        else btn.textContent = 'Confirmar empresa e criar conta';
     }
 }
 
@@ -2109,7 +2055,9 @@ window.alternarModoCadastro = function() {
     const linkAlt = document.getElementById('link-alternar-modo');
 
     if (gNome) gNome.classList.toggle('oculto', !modoCadastro);
-    if (gSetor) gSetor.classList.toggle('oculto', !modoCadastro);
+    if (gSetor) gSetor.classList.add('oculto');
+    document.getElementById('nome-cadastro').required = modoCadastro;
+    document.getElementById('senha').minLength = modoCadastro ? 8 : 1;
     if (btnEntrar) btnEntrar.textContent = modoCadastro ? 'Criar Minha Conta' : 'Entrar no Sistema';
     if (linkAlt) linkAlt.textContent = modoCadastro ? 'Já tem conta? Entrar' : 'Não tem conta? Cadastre-se';
 };
@@ -2119,14 +2067,39 @@ var alternarModoCadastro = window.alternarModoCadastro;
 // INICIALIZAÇÃO DA SESSÃO
 // =========================================================================
 window.iniciarApp = async function() {
+    if (window.inicializacaoSuiri) return window.inicializacaoSuiri;
+    window.inicializacaoSuiri = window.iniciarAppSeguro();
+    try { return await window.inicializacaoSuiri; }
+    finally { window.inicializacaoSuiri = null; }
+};
+window.iniciarAppSeguro = async function() {
+    if (!usuarioAtual || !cliente) return;
     const telaLogin = document.getElementById('tela-login');
     const telaApp = document.getElementById('tela-app');
-    if (telaLogin) telaLogin.classList.add('oculto');
-    if (telaApp) telaApp.classList.remove('oculto');
-
-    const { data } = await cliente.from('perfis').select('*').eq('id', usuarioAtual.id).single();
-    perfilAtual = data;
-    empresaAtualId = perfilAtual?.empresa_id || null;
+    try {
+        const {data:versaoBanco,error:erroVersao}=await cliente.rpc('suiri_versao');
+        if(erroVersao || versaoBanco!==4)throw new Error('A atualização do banco V4 precisa ser instalada. Siga o GUIA_NO_CELULAR incluído no ZIP.');
+        let resultado = await cliente.from('perfis').select('*').eq('id', usuarioAtual.id).maybeSingle();
+        if (resultado.error) throw resultado.error;
+        if (!resultado.data?.empresa_id) {
+            const meta = usuarioAtual.user_metadata || {};
+            if (!meta.suiri_cnpj) throw new Error('Sua conta ainda não está vinculada a uma empresa. Use “Vincular minha conta” abaixo para informar o CNPJ.');
+            const vinculo = await cliente.rpc('suiri_vincular_empresa', {p_cnpj: meta.suiri_cnpj, p_nome: meta.nome || 'Colaborador', p_empresa: meta.suiri_empresa || {}});
+            if (vinculo.error) throw vinculo.error;
+            resultado = await cliente.from('perfis').select('*').eq('id', usuarioAtual.id).single();
+            if (resultado.error) throw resultado.error;
+        }
+        perfilAtual = resultado.data;
+        if (!perfilAtual?.empresa_id) throw new Error('Vínculo da empresa não encontrado. Atualize o banco com o SQL do pacote.');
+        empresaAtualId = perfilAtual.empresa_id;
+    } catch(e) {
+        telaApp?.classList.add('oculto'); telaLogin?.classList.remove('oculto');
+        const erro = document.getElementById('msg-erro');
+        erro.textContent = 'Não foi possível abrir a empresa: ' + e.message; erro.classList.remove('oculto');
+        document.getElementById('vinculo-pendente')?.classList.remove('oculto');
+        return;
+    }
+    telaLogin?.classList.add('oculto'); telaApp?.classList.remove('oculto');
 
     await window.carregarDadosEmpresa();
 
@@ -2135,7 +2108,10 @@ window.iniciarApp = async function() {
     if (empresaAtualId) {
         queryPerfis = queryPerfis.eq('empresa_id', empresaAtualId);
     }
-    const { data: funcs } = await queryPerfis;
+    const { data: perfisCompletos, error: erroEquipe } = await queryPerfis;
+    const {data: equipeBasica, error: erroDiretorio} = await cliente.rpc('suiri_equipe_basica');
+    if (erroEquipe || erroDiretorio) window.mostrarToast('Não foi possível atualizar toda a equipe. Confira a conexão e a atualização do banco.', 'erro');
+    const funcs = (equipeBasica || []).map(p => ({...p,...(perfisCompletos || []).find(f => f.id === p.id)}));
     if(funcs) {
         mapaNomes = {};
         mapaPerfis = {};
@@ -2175,14 +2151,10 @@ window.iniciarApp = async function() {
         btnNovoCaixa.classList.toggle('oculto', !podeFecharCaixa);
     }
 
-    const podeVerGestao = isAdmin || permissoes.includes('gestao') || permissoes.includes('compras') || permissoes.includes('contas');
+    const podeVerGestao = isAdmin || permissoes.includes('gestao') || permissoes.includes('compras') || permissoes.includes('contas') || permissoes.includes('financeiro') || permissoes.includes('fechar_caixa') || !!perfilAtual?.pode_fechar_caixa;
     const podeVerRelatorios = isAdmin || permissoes.includes('relatorios');
     const podeVerPainel = isAdmin || isSocio || permissoes.includes('inspecao');
 
-    document.getElementById('turno-nav-equipe').classList.toggle('oculto', !podeVerPainel);
-    document.getElementById('turno-nav-gestao').classList.toggle('oculto', !podeVerGestao);
-    document.getElementById('turno-nav-admin').classList.toggle('oculto', !(isAdmin || isSocio));
-    document.getElementById('turno-nav-relatorios').classList.toggle('oculto', !podeVerRelatorios);
     const btnPainelTopo = document.getElementById('btn-tela-painel');
     const btnRelatoriosTopo = document.getElementById('btn-tela-relatorios');
     const btnGestaoTopo = document.getElementById('btn-tela-gestao');
@@ -2301,14 +2273,16 @@ window.verificarSessao = async function() {
 };
 
 if (cliente && cliente.auth) {
-    cliente.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
+    cliente.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session && !window.cadastroEmAndamento) {
             usuarioAtual = session.user;
-            if (document.getElementById('tela-app')?.classList.contains('oculto')) {
-                await window.iniciarApp();
-            }
+            setTimeout(() => {
+                if (document.getElementById('tela-app')?.classList.contains('oculto')) window.iniciarApp();
+            }, 0);
+        } else if (event === 'PASSWORD_RECOVERY') {
+            setTimeout(() => window.abrirRecuperacaoSuiri(), 0);
         } else if (event === 'SIGNED_OUT') {
-            usuarioAtual = null;
+            usuarioAtual = null; perfilAtual = null; empresaAtualId = null;
             document.getElementById('tela-app')?.classList.add('oculto');
             document.getElementById('tela-login')?.classList.remove('oculto');
         }
@@ -2343,8 +2317,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (modoCadastro) {
-                if (!email || !senha || senha.length < 4) {
-                    if (msgErro) { msgErro.textContent = 'Informe email e uma senha válida (mínimo 4 caracteres).'; msgErro.classList.remove('oculto'); }
+                if (!email || !senha || senha.length < 8 || !nome) {
+                    if (msgErro) { msgErro.textContent = 'Informe seu nome, e-mail e uma senha de pelo menos 8 caracteres.'; msgErro.classList.remove('oculto'); }
                     return;
                 }
                 
@@ -2370,8 +2344,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.verificarSessao();
-});
-
-document.querySelector('.turno-nav').addEventListener('click', evento => {
-    if (evento.target.closest('button')) window.scrollTo(0, 0);
 });
