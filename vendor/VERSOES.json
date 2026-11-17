@@ -1,0 +1,5 @@
+{
+  "@supabase/supabase-js": "2.119.0",
+  "html2pdf.js": "0.10.1",
+  "@zxing/library": "0.21.3"
+}
