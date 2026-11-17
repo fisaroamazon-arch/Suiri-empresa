@@ -1,0 +1,50 @@
+:root { --nevoa:#e8f3fb; --lilas:#f1ebfc; --aqua:#0a807e; --vinheta:#5853a2; }
+html[data-theme=dark] { --nevoa:#122733; --lilas:#29203b; --aqua:#68e7d5; --vinheta:#bcabff; }
+body, html[data-theme=dark] body { background:radial-gradient(ellipse at 5% 0,var(--nevoa),transparent 56%),linear-gradient(145deg,var(--cor-fundo) 46%,var(--lilas)); background-attachment:fixed; }
+#tela-app { padding:14px 14px calc(96px + env(safe-area-inset-bottom)); }
+#tela-login { padding-top:16px; }
+.faixa-marca { display:flex; align-items:center; justify-content:space-between; position:relative; isolation:isolate; overflow:hidden; padding:17px 18px; border-radius:22px; color:#fff; background:radial-gradient(ellipse at 0 130%,#08666e,transparent 64%),linear-gradient(110deg,#0c243d,#262758 67%,#473578); }
+.faixa-marca::before,.cartao-ponto::before { content:""; position:absolute; z-index:-1; top:-55px; right:-26px; width:150px; height:150px; border:1px solid #9bceff40; border-radius:50%; box-shadow:0 0 0 13px #a6e6ff10,0 0 0 28px #91bfff10,0 0 0 45px #b8b0ff12; pointer-events:none; }
+.assinatura { display:flex; gap:10px; align-items:center; }
+.marca-recorte { width:90px; height:29px; display:block; overflow:hidden; position:relative; }
+.marca-recorte img { width:154px; max-width:none; position:absolute; top:-21.8px; left:-33px; }
+.empresa { font-size:12px; font-weight:550; border-left:1px solid #ffffff55; padding-left:10px; color:#e1ecff; }
+.config-marca { width:40px; height:40px; border-radius:14px; display:grid; place-items:center; background:#ffffff16; border:1px solid #ffffff35; color:#fff; }
+.config-marca svg,.turno-nav svg,.pictograma svg { width:20px; height:20px; flex:none; }
+#menu-acoes {display:none!important;}
+#config-visual { margin:auto; width:min(360px,92vw); color:var(--cor-texto); background:var(--vidro-bg); border:var(--vidro-borda); border-radius:22px; padding:22px; }
+#config-visual::backdrop {background:#1015278c;backdrop-filter:blur(5px);}
+#config-visual form,.opcao-tema {display:flex;align-items:center;justify-content:space-between;gap:12px;}
+#config-visual form {margin-bottom:18px;}
+#config-visual form button {border:0;border-radius:50%;color:var(--cor-texto);background:var(--surface-subtle);width:40px;height:40px;}
+.opcao-tema select {max-width:160px;}
+.card-login {border:var(--vidro-borda);border-radius:26px;padding:18px 20px 24px;}
+.card-login .faixa-marca {margin:-18px -20px 20px;border-radius:26px 26px 16px 16px;padding:24px;}
+.cabecalho-app {padding:14px 3px 8px;}
+.cartao-geral,.area-seccao,#secao-tarefas,.modal-overlay .modal-conteudo {border-radius:21px;border:var(--vidro-borda);box-shadow:0 6px 22px #25264e0a;background:linear-gradient(155deg,var(--vidro-bg) 55%,var(--nevoa));}
+.area-seccao {padding:16px;margin-bottom:14px;}
+.cartao-geral.cartao-ponto {isolation:isolate;overflow:hidden;position:relative;border:0;background:radial-gradient(ellipse at 0 110%,#126775,transparent 65%),linear-gradient(118deg,#143351 5%,#2b3568 68%,#553e86);color:white;border-radius:24px;padding:20px;}
+.cartao-ponto h2,.cartao-ponto #status-ponto,.cartao-ponto #status-ponto *,#turno-progresso-texto {color:#fff!important;}
+.cartao-ponto .turno-data {color:#c9efea;font-size:12px;}
+.cartao-ponto #btn-ponto-entrada {background:linear-gradient(105deg,#9af4e4,#b5ddff);color:#103540;border:0;border-radius:14px;}
+.cartao-ponto #btn-ponto-saida {background:#ffffff16;color:white;border-color:#ffffff56;border-radius:14px;}
+#turno-resumo {border-color:#ffffff40;}
+.pictograma {display:inline-grid;place-items:center;vertical-align:middle;margin-right:8px;width:32px;height:32px;border-radius:11px;color:var(--vinheta);background:linear-gradient(135deg,var(--accent-soft),var(--lilas));}
+.tom-compra,.tom-tarefas,.tom-consumo {color:var(--aqua);background:linear-gradient(135deg,var(--nevoa),var(--accent-soft));}
+.cartao-ponto h2,.logo-estilizada {font-size:19px;}
+h3,.cabecalho-app h2 {font-size:16px;}
+.tarefa-titulo,.status-texto,.cartao-ponto button {font-size:14px;}
+.bloco-categoria-tarefas {border-radius:16px;background:linear-gradient(115deg,var(--surface-subtle),var(--vidro-bg));}
+.btn-principal,.btn-admin-roxo,.btn-socio-verde {background:linear-gradient(105deg,#086e82,#3e58ae 58%,#6842aa);color:white;border-radius:12px;}
+.turno-nav {position:fixed;z-index:1000;display:flex;justify-content:center;gap:2px;left:50%;right:auto;transform:translateX(-50%);width:min(610px,calc(100% - 12px));bottom:calc(6px + env(safe-area-inset-bottom));background:var(--vidro-bg);border:var(--vidro-borda);padding:6px 3px;border-radius:22px;box-shadow:0 8px 32px #171f482e;}
+.turno-nav button {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;min-width:0;min-height:49px;color:var(--texto-suave);background:transparent;border:0;border-radius:15px;font-size:clamp(10px,2.8vw,12px);font-weight:600;padding:2px 0;}
+#btn-tarefa-autonoma,#btn-sair {border:var(--vidro-borda);background:var(--surface-subtle);color:var(--cor-texto);padding:8px 12px;border-radius:12px;}
+#btn-sair {margin:8px 0;}
+#banner-offline-status {bottom:calc(80px + env(safe-area-inset-bottom));}
+#tela-app main {margin-top:12px;}
+#tela-app:has(#conteudo-operacional:not(.oculto)) #turno-nav-turno,
+#tela-app:has(#conteudo-painel-ao-vivo:not(.oculto)) #turno-nav-equipe,
+#tela-app:has(#conteudo-gestao-compras-contas:not(.oculto)) #turno-nav-gestao,
+#tela-app:has(#conteudo-admin:not(.oculto)) #turno-nav-admin,
+#tela-app:has(#conteudo-relatorios:not(.oculto)) #turno-nav-relatorios,
+#tela-app:has(#conteudo-perfil:not(.oculto)) #turno-nav-perfil { background:linear-gradient(125deg,var(--nevoa),var(--lilas)); color:var(--accent-text); }
