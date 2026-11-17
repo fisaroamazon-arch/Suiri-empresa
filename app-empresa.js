@@ -216,18 +216,117 @@ window.excluirColaboradorModal = async function(id) {
     suiriEl('resultado-inspecao-colab')?.classList.add('oculto');
     window.mostrarToast('Membro excluído.'); await window.iniciarApp();
 };
-window.excluirContaSuiri = async function(empresa) {
+// A persistent confirmation makes mismatches and server failures visible on mobile.
+let suiriExclusao = null;
+function suiriDialogoExclusao() {
+    let dialogo = suiriEl('confirmar-exclusao-suiri');
+    if (dialogo) return dialogo;
+    document.body.insertAdjacentHTML('beforeend', `<dialog id="confirmar-exclusao-suiri" aria-labelledby="exclusao-titulo" aria-describedby="exclusao-descricao">
+        <form id="form-exclusao-suiri" class="suiri-form" novalidate>
+            <div class="suiri-dialog-cabecalho"><h2 id="exclusao-titulo">Confirmar exclusão</h2><button type="button" id="exclusao-fechar" aria-label="Fechar confirmação">×</button></div>
+            <p id="exclusao-descricao"></p>
+            <div class="suiri-exclusao-aviso"><strong id="exclusao-alvo"></strong><p>Esta exclusão é definitiva e não pode ser desfeita.</p></div>
+            <label for="exclusao-confirmacao" id="exclusao-instrucao"></label>
+            <input id="exclusao-confirmacao" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="80" aria-describedby="exclusao-exemplo exclusao-status">
+            <small id="exclusao-exemplo"></small>
+            <p id="exclusao-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div class="suiri-exclusao-acoes"><button type="button" id="exclusao-cancelar" class="btn-secundario">Cancelar</button><button type="submit" id="exclusao-executar" class="btn-erro">Excluir definitivamente</button></div>
+        </form>
+    </dialog>`);
+    dialogo = suiriEl('confirmar-exclusao-suiri');
+    const fechar = () => { if (!suiriExclusao?.ocupado) dialogo.close(); };
+    suiriEl('exclusao-fechar').addEventListener('click', fechar);
+    suiriEl('exclusao-cancelar').addEventListener('click', fechar);
+    dialogo.addEventListener('cancel', e => { if (suiriExclusao?.ocupado) e.preventDefault(); });
+    dialogo.addEventListener('close', () => { const foco=suiriExclusao?.foco; suiriExclusao=null; foco?.focus(); });
+    suiriEl('exclusao-confirmacao').addEventListener('input', () => {
+        if (suiriExclusao?.ocupado) return;
+        suiriEl('exclusao-confirmacao').removeAttribute('aria-invalid');
+        suiriExclusaoStatus('',false);
+    });
+    suiriEl('form-exclusao-suiri').addEventListener('submit', suiriConfirmarExclusao);
+    return dialogo;
+}
+function suiriExclusaoStatus(texto,erro) {
+    const status=suiriEl('exclusao-status');
+    status.textContent=texto;
+    status.classList.toggle('suiri-exclusao-erro',!!erro);
+}
+function suiriExclusaoOcupada(ocupado) {
+    suiriExclusao.ocupado=ocupado;
+    suiriEl('form-exclusao-suiri').setAttribute('aria-busy',String(ocupado));
+    for(const id of ['exclusao-confirmacao','exclusao-executar','exclusao-fechar','exclusao-cancelar'])suiriEl(id).disabled=ocupado;
+    suiriEl('exclusao-executar').textContent=ocupado?'Excluindo…':'Excluir definitivamente';
+}
+async function suiriConfirmarExclusao(evento) {
+    evento.preventDefault();
+    const pedido=suiriExclusao;
+    if (!pedido || pedido.ocupado) return;
+    const campo=suiriEl('exclusao-confirmacao');
+    const texto=campo.value.trim().toUpperCase();
+    const conferido=pedido.empresa?texto.replace(/^EXCLUIR\s+/,'').replace(/[.\/\-\s]/g,''):texto.replace(/\s+/g,' ');
+    if (conferido !== pedido.confirmacao) {
+        campo.setAttribute('aria-invalid','true');
+        suiriExclusaoStatus(pedido.empresa?'O CNPJ não confere. Digite o CNPJ mostrado acima, com ou sem pontuação. Nenhuma exclusão foi iniciada.':'A confirmação não confere. Digite EXCLUIR MINHA CONTA. Nenhuma exclusão foi iniciada.',true);
+        campo.focus();
+        return;
+    }
+    if (!navigator.onLine) { suiriExclusaoStatus('Conecte-se à internet para excluir. Nenhuma exclusão foi iniciada.',true);return; }
+    if (usuarioAtual?.id !== pedido.usuario || String(empresaAtualId) !== pedido.empresaId) {
+        suiriExclusaoStatus('A sessão mudou. Cancele esta janela e entre novamente na conta antes de excluir.',true);return;
+    }
+    suiriExclusaoOcupada(true);
+    let excluido=false;
+    try {
+        suiriExclusaoStatus('Verificando permissões e removendo as fotos vinculadas…',false);
+        await suiriLimparArquivos(pedido.usuario,pedido.empresa);
+        suiriExclusaoStatus(pedido.empresa?'Excluindo a empresa, os dados e os acessos…':'Excluindo sua conta e os registros pessoais…',false);
+        const {error}=await cliente.rpc(pedido.empresa?'suiri_excluir_empresa':'suiri_excluir_minha_conta',pedido.empresa?{p_confirmacao:'EXCLUIR '+pedido.confirmacao}:{});
+        if(error)throw error;
+        excluido=true;
+        const chave=suiriChaveFila();
+        if(chave){try{localStorage.removeItem(chave);}catch{}}
+        suiriExclusaoStatus('Exclusão concluída. Voltando à tela de entrada…',false);
+        await window.fazerLogoff();
+        suiriExclusaoOcupada(false);
+        suiriEl('confirmar-exclusao-suiri').close();
+        window.mostrarToast(pedido.empresa?'Empresa e acessos excluídos.':'Sua conta foi excluída.');
+    } catch(e) {
+        suiriExclusaoOcupada(false);
+        if(excluido){
+            suiriExclusaoStatus('A exclusão foi concluída, mas não foi possível voltar à entrada. Feche e abra o aplicativo novamente.',false);
+            suiriEl('exclusao-confirmacao').disabled=true;
+            suiriEl('exclusao-executar').disabled=true;
+            suiriEl('exclusao-cancelar').textContent='Fechar';
+        }else{
+            const detalhe=e?.message || 'Não foi possível obter uma resposta do servidor.';
+            const ausente=e?.code==='PGRST202'||e?.code==='42883';
+            suiriExclusaoStatus((ausente?'A função necessária não foi encontrada no Supabase. ':'Não foi possível concluir a exclusão. ')+detalhe,true);
+        }
+    }
+}
+window.excluirContaSuiri = function(empresa) {
+    if (!usuarioAtual?.id) return suiriErro(new Error('Entre na conta antes de excluir.'));
     if (empresa && !perfilAtual?.is_admin) return suiriErro(new Error('Apenas administradores podem excluir a empresa.'));
-    const nome = dadosEmpresaAtual?.nome_fantasia || 'a empresa';
-    const frase = empresa ? `EXCLUIR ${window.normalizarCNPJ(dadosEmpresaAtual?.cnpj)}` : 'EXCLUIR MINHA CONTA';
-    const explicacao = empresa ? `Esta ação exclui ${nome}, todos os dados do aplicativo e os acessos de todos os membros vinculados. Não pode ser desfeita.` : 'Esta ação exclui seu login e seus registros pessoais de ponto, tarefas autônomas pessoais, vales e consumo. A empresa e os registros comerciais são preservados. O último administrador precisa transferir a administração ou excluir a empresa.';
-    if (prompt(explicacao + '\n\nPara confirmar, digite exatamente:\n' + frase) !== frase) return;
-    try { await suiriLimparArquivos(usuarioAtual.id,empresa); } catch(e) { return suiriErro(e); }
-    const {error} = await cliente.rpc(empresa ? 'suiri_excluir_empresa' : 'suiri_excluir_minha_conta', empresa ? {p_confirmacao:frase} : {});
-    if (error) return suiriErro(error);
-    const chave = suiriChaveFila(); if (chave) localStorage.removeItem(chave);
-    await window.fazerLogoff();
+    const cnpj=window.normalizarCNPJ(dadosEmpresaAtual?.cnpj);
+    if (empresa && !/^[A-Z0-9]{12}\d{2}$/.test(cnpj)) return suiriErro(new Error('Não foi possível identificar o CNPJ da empresa. Reabra sua sessão antes de excluir.'));
+    const dialogo=suiriDialogoExclusao();
+    if(dialogo.open)return;
+    suiriExclusao={empresa:!!empresa,confirmacao:empresa?cnpj:'EXCLUIR MINHA CONTA',usuario:usuarioAtual.id,empresaId:String(empresaAtualId),ocupado:false,foco:document.activeElement};
+    suiriEl('form-exclusao-suiri').reset();
+    suiriEl('exclusao-confirmacao').removeAttribute('aria-invalid');
+    suiriEl('exclusao-cancelar').textContent='Cancelar';
+    suiriEl('exclusao-titulo').textContent=empresa?'Excluir empresa e todos os acessos':'Excluir minha conta';
+    suiriEl('exclusao-descricao').textContent=empresa?'Serão excluídos os dados do aplicativo desta empresa e as contas de todos os membros vinculados.':'Serão excluídos seu login e seus registros pessoais de ponto, tarefas autônomas, vales e consumo. A empresa e os registros comerciais serão preservados. Se você for o último administrador, transfira a administração antes.';
+    suiriEl('exclusao-alvo').textContent=empresa?(dadosEmpresaAtual?.nome_fantasia||'Sua empresa')+' • CNPJ '+cnpj:(perfilAtual?.nome||'Sua conta');
+    suiriEl('exclusao-instrucao').textContent=empresa?'Digite o CNPJ desta empresa para confirmar:':'Digite EXCLUIR MINHA CONTA para confirmar:';
+    suiriEl('exclusao-exemplo').textContent=empresa?'CNPJ: '+cnpj+' — pode usar a pontuação habitual.':'A frase pode ser digitada em letras maiúsculas ou minúsculas.';
+    suiriExclusaoStatus('',false);
+    suiriExclusaoOcupada(false);
+    dialogo.showModal();
+    suiriEl('exclusao-confirmacao').focus();
 };
+
 window.retomarVinculo = async function() {
     const cnpj = prompt('Informe o CNPJ da empresa para vincular sua conta:');
     if (!cnpj) return;
@@ -457,7 +556,7 @@ function suiriMontarUI() {
         if(e.key==='Tab'){const nodes=[...modal.querySelectorAll('button,input,select,textarea,summary,[tabindex="0"]')].filter(n=>!n.disabled && n.offsetParent!==null);const i=nodes.indexOf(document.activeElement);if((e.shiftKey&&i<=0)||(!e.shiftKey&&i===nodes.length-1)){e.preventDefault();nodes[e.shiftKey?nodes.length-1:0]?.focus();}}
     });
     let inicio=null;
-    const ignora='input,textarea,select,button,a,summary,canvas,video,.modal-overlay,.autocomplete-container,#suiri-nav,.suiri-tabs,[draggable="true"]';
+    const ignora='input,textarea,select,button,a,summary,canvas,video,dialog,.modal-overlay,.autocomplete-container,#suiri-nav,.suiri-tabs,[draggable="true"]';
     document.addEventListener('touchstart',e=>{
         if(e.touches.length!==1 || e.target.closest(ignora) || localStorage.getItem('suiri_gestos')==='nao' || !perfilAtual || document.querySelector('.modal-overlay:not(.oculto)')){inicio=null;return;}
         let el=e.target;while(el&&el!==document.body){if(el.scrollWidth>el.clientWidth+4 && getComputedStyle(el).overflowX!=='visible'){inicio=null;return;}el=el.parentElement;}

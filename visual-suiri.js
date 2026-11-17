@@ -78,7 +78,7 @@
     document.querySelectorAll('[data-comercial-tab]').forEach(el=>replaceLeadingSymbol(el,el.dataset.comercialTab==='receber'?'receber':'painel','suiri-inline-icon'));
     const config=document.querySelector('#conteudo-configuracoes > section');
     if(config){
-        config.insertAdjacentHTML('beforeend','<p class="suiri-assinatura-rodape">Suiri Empresa <span>V4.1</span></p>');
+        config.insertAdjacentHTML('beforeend','<p class="suiri-assinatura-rodape">Suiri Empresa <span>V4.2</span></p>');
         replaceLeadingSymbol(config.querySelector('h2'),'configuracoes');
     }
     decorateNavigation();decorateCommercial();

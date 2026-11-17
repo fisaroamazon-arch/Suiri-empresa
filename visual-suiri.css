@@ -235,3 +235,29 @@ html[data-tema="escuro"] #tela-app [style*="color: #334155"],html[data-tema="esc
 html[data-tema="escuro"] .tag-setor {background:var(--accent-soft)!important;color:var(--accent-text)!important;}
 
 .card-login .subtitulo {text-transform:none;letter-spacing:0;}
+
+/* V4.2: persistent mobile confirmation for destructive account actions. */
+#confirmar-exclusao-suiri {width:calc(100% - 24px);max-width:440px;max-height:calc(100dvh - 32px);padding:22px;border:1px solid var(--line);border-radius:22px;background:var(--vidro-bg);color:var(--cor-texto);box-shadow:0 24px 80px #0b102a55;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;}
+#confirmar-exclusao-suiri::backdrop {background:#09122cb3;backdrop-filter:blur(5px);}
+#confirmar-exclusao-suiri .suiri-dialog-cabecalho {margin-bottom:0;align-items:flex-start;}
+#confirmar-exclusao-suiri h2 {font-size:17px;line-height:1.4;}
+#confirmar-exclusao-suiri p {font-size:13px;line-height:1.6;margin:0;}
+#confirmar-exclusao-suiri .suiri-form {display:grid;gap:14px;}
+#confirmar-exclusao-suiri input {width:100%;min-width:0;min-height:48px;font-size:16px;box-sizing:border-box;}
+#confirmar-exclusao-suiri input[aria-invalid="true"] {border-color:#d95268;outline:2px solid #d9526826;}
+#confirmar-exclusao-suiri label {font-size:13px;font-weight:600;}
+#confirmar-exclusao-suiri small {font-size:12px;line-height:1.5;color:var(--texto-suave);overflow-wrap:anywhere;}
+.suiri-exclusao-aviso {padding:14px;border:1px solid #d952684d;background:#d952680c;border-radius:14px;}
+.suiri-exclusao-aviso strong {font-size:13px;display:block;overflow-wrap:anywhere;}
+#confirmar-exclusao-suiri .suiri-exclusao-aviso p {font-size:12px;margin-top:6px;}
+#exclusao-status {padding:12px;border-radius:12px;background:var(--surface-subtle);overflow-wrap:anywhere;}
+#exclusao-status:empty {display:none;}
+#exclusao-status.suiri-exclusao-erro {border:1px solid #d9526880;color:#a51e37;background:#fff0f3;}
+[data-tema="escuro"] #exclusao-status.suiri-exclusao-erro {color:#ffb5c3;background:#401f2a;}
+.suiri-exclusao-acoes {display:grid;grid-template-columns:1fr;gap:10px;}
+.suiri-exclusao-acoes button {min-height:48px;width:100%;margin:0;font-size:13px;white-space:normal;}
+#confirmar-exclusao-suiri button:disabled {opacity:.65;cursor:wait;}
+#confirmar-exclusao-suiri #exclusao-fechar {min-width:44px;min-height:44px;}
+
+#confirmar-exclusao-suiri .btn-erro {background:#bd2541;color:#fff;border:1px solid #bd2541;}
+#confirmar-exclusao-suiri .btn-erro:hover {background:#a91f39;}
