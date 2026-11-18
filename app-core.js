@@ -214,6 +214,7 @@ window.atualizarDadosGeral = async function() {
     window.mostrarToast("Atualizando dados do sistema...", "info");
 
     const promessas = [];
+    if (window.atualizarConsumoSuiri) promessas.push(window.atualizarConsumoSuiri(true));
     if (typeof window.carregarDadosEmpresa === 'function') promessas.push(window.carregarDadosEmpresa());
     if (typeof window.carregarTarefas === 'function') promessas.push(window.carregarTarefas());
     if (typeof window.carregarAvisos === 'function') promessas.push(window.carregarAvisos());
@@ -1023,7 +1024,7 @@ window.inspecionarColaborador = async function(colabId) {
 
     let queryCompras = cliente.from('itens_comprados')
         .select('*')
-        .or(`perfil_id.eq.${colabId},registrado_por.eq.${colabId}`)
+        .eq('perfil_id', colabId)
         .order('data_compra', { ascending: false });
 
     if (ultimoFechamento && ultimoFechamento.length > 0 && ultimoFechamento[0].data_pagamento) {
@@ -1637,10 +1638,10 @@ window.renderizarPainelPerfilCompleto = async function() {
     const elResumoVales = document.getElementById('perfil-resumo-vales');
     if (elResumoVales) elResumoVales.textContent = `R$ ${totalVales.toFixed(2)}`;
 
-    const { data: compras } = await cliente.from('itens_comprados').select('valor_final').or(`perfil_id.eq.${usuarioAtual.id},registrado_por.eq.${usuarioAtual.id}`);
+    const { data: compras } = await cliente.from('itens_comprados').select('valor_final').eq('perfil_id', usuarioAtual.id);
     const totalCompras = compras?.reduce((acc, c) => acc + Number(c.valor_final), 0) || 0;
     const elResumoCompras = document.getElementById('perfil-resumo-compras');
-    if (elResumoCompras) elResumoCompras.textContent = `R$ ${totalCompras.toFixed(2)}`;
+    if (elResumoCompras) elResumoCompras.textContent = totalCompras.toLocaleString('pt-BR', {style:'currency',currency:'BRL'});
 
     const totalDescontos = totalVales + totalCompras;
     const elResumoDescontos = document.getElementById('perfil-resumo-descontos');
@@ -1700,7 +1701,7 @@ window.carregarFinanceiroSeparado = async function() {
 
     const { data: compras } = await cliente.from('itens_comprados')
         .select('*')
-        .or(`perfil_id.eq.${usuarioAtual.id},registrado_por.eq.${usuarioAtual.id}`)
+        .eq('perfil_id', usuarioAtual.id)
         .order('data_compra', { ascending: false });
 
     let listaUnificada = [];
@@ -1759,51 +1760,6 @@ window.carregarFinanceiroSeparado = async function() {
     });
 
     contFin.innerHTML = html;
-};
-
-window.registrarConsumoProprio = async function() {
-    const desc = document.getElementById('input-meu-consumo-desc')?.value.trim();
-    const valorUnit = parseFloat(document.getElementById('input-meu-consumo-valor')?.value);
-    const qtd = parseInt(document.getElementById('input-meu-consumo-qtd')?.value) || 1;
-
-    if (!desc || isNaN(valorUnit) || valorUnit <= 0) {
-        return window.mostrarToast("Busque e selecione um item do cardápio.", "erro");
-    }
-
-    if (qtd <= 0) {
-        return window.mostrarToast("Informe uma quantidade válida (mínimo 1).", "erro");
-    }
-
-    const valorTotalOriginal = valorUnit * qtd;
-    const valorFinal = valorTotalOriginal - (valorTotalOriginal * 0.30);
-    const hoje = window.dataLocal();
-    const descFormatada = qtd > 1 ? `${qtd}x ${desc}` : desc;
-
-    const payload = {
-        perfil_id: usuarioAtual.id,
-        descricao_item: descFormatada,
-        valor_unitario: valorTotalOriginal,
-        porcentagem_desconto: 30,
-        valor_final: valorFinal,
-        data_compra: hoje,
-        registrado_por: usuarioAtual.id
-    };
-
-    const res = await window.executarOuOffline('consumo_insert', payload, () => cliente.from('itens_comprados').insert([payload]));
-
-    if (res && res.error) {
-        window.mostrarToast("Erro ao registrar: " + res.error.message, "erro");
-    } else {
-        window.mostrarToast(res.offline ? `Salvo offline: ${descFormatada} (-30% OFF)!` : `${descFormatada} registrado (-30% OFF)!`);
-        document.getElementById('input-meu-consumo-desc').value = '';
-        document.getElementById('input-meu-consumo-valor').value = '';
-        document.getElementById('input-meu-consumo-qtd').value = '1';
-        if (typeof window.renderizarPainelPerfilCompleto === 'function') window.renderizarPainelPerfilCompleto();
-        const selInspecao = document.getElementById('select-inspecionar-colab');
-        if (selInspecao && selInspecao.value === usuarioAtual.id) {
-            window.inspecionarColaborador(usuarioAtual.id);
-        }
-    }
 };
 
 window.abrirModalEditarItem = function(id, desc, valor, pct_desc, tipo = 'compra', dataReg = '') {
@@ -2283,6 +2239,9 @@ if (cliente && cliente.auth) {
             setTimeout(() => window.abrirRecuperacaoSuiri(), 0);
         } else if (event === 'SIGNED_OUT') {
             usuarioAtual = null; perfilAtual = null; empresaAtualId = null;
+            window.fecharLeitorCameraGestao?.();
+            window.inicializarCardapioConsumo?.();
+            window.atualizarConsumoSuiri?.();
             document.getElementById('tela-app')?.classList.add('oculto');
             document.getElementById('tela-login')?.classList.remove('oculto');
         }

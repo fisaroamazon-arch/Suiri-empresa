@@ -17,7 +17,7 @@
     <!-- Conexão com o CSS -->
     <link rel="stylesheet" href="style.css?v=4.1">
     <link rel="stylesheet" href="marca.css?v=4.1">
-    <link rel="stylesheet" href="visual-suiri.css?v=4.2">
+    <link rel="stylesheet" href="visual-suiri.css?v=4.3">
 </head>
 <body>
     <dialog id="config-visual" aria-labelledby="config-visual-titulo"><div class="suiri-dialog-cabecalho"><h2 id="config-visual-titulo">Configurações</h2><button type="button" id="fechar-aparencia-login" aria-label="Fechar configurações">×</button></div><label class="opcao-tema" for="tema-interface"><span>Tema</span><select id="tema-interface"><option value="sistema">Automático</option><option value="claro">Claro</option><option value="escuro">Escuro</option></select></label><p class="suiri-dialog-dica">A aparência acompanha sua escolha em todas as telas.</p></dialog>
@@ -61,6 +61,11 @@
     <div id="tela-app" class="container oculto">
         <div class="faixa-marca suiri-marca-app"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri" width="154" height="77"></span><span class="empresa">Empresa</span></div><button type="button" class="config-marca" id="abrir-ajustes-marca" aria-label="Abrir ajustes"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5m4 0h9M3 17h11m4 0h3"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></button></div>
         
+        <button type="button" id="btn-consumo-pendencias" class="config-marca oculto" aria-label="Aprovações de consumo" title="Aprovações de consumo">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+            <span id="badge-consumo-pendencias" class="oculto"></span>
+        </button>
+
         <!-- BARRA SUPERIOR FIXA COMPACTA -->
         <nav class="botoes-topo">
             <button id="btn-tela-gestao" class="btn-topo btn-topo-gestao-unificada oculto" onclick="alternarTelas('gestao')">🛍️ Gestão</button>
@@ -132,7 +137,7 @@
                 <div class="painel-unificado-cabecalho">
                     <div>
                         <h3 style="margin-bottom: 2px; color: #0284c7;">💳 Contas a Pagar</h3>
-                        <p style="font-size: 11px; color: var(--texto-suave);">Vencimentos dos próximos 7 dias</p>
+                        <p style="font-size: 11px; color: var(--texto-suave);">Cadastre e acompanhe suas contas</p>
                     </div>
                     <button class="btn-principal" onclick="window.toggleFormNovaContaGestao()" style="width: auto; margin-top: 0; padding: 6px 12px; font-size: 11px;">+ Nova Conta</button>
                 </div>
@@ -184,16 +189,16 @@
                     <!-- LEITURA OU DIGITAÇÃO DO CÓDIGO -->
                     <div style="margin-bottom: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <label id="label-conta-codigo-gestao" style="font-size: 11px; font-weight: 700;">Linha Digitável / Código de Barras</label>
-                            <button type="button" class="btn-secundario" onclick="window.abrirLeitorCameraGestao()" style="font-size: 10px; padding: 2px 6px;">📷 Câmera</button>
+                            <label id="label-conta-codigo-gestao" for="input-conta-codigo-gestao" style="font-size: 11px; font-weight: 700;">Linha Digitável / Código de Barras</label>
+                            <button type="button" class="btn-secundario" id="btn-leitor-camera-gestao" onclick="window.abrirLeitorCameraGestao()">Usar câmera</button>
                         </div>
-                        <input type="text" id="input-conta-codigo-gestao" placeholder="Cole ou escaneie o código...">
+                        <input type="text" id="input-conta-codigo-gestao" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Cole a linha digitável ou use a câmera">
                     </div>
 
                     <!-- BOX DO LEITOR PELA CÂMERA -->
                     <div id="box-leitor-camera-gestao" class="camera-leitor-box oculto">
-                        <video id="video-leitor-camera-gestao"></video>
-                        <div class="mira-leitor-codigo"></div>
+                        <video id="video-leitor-camera-gestao" autoplay muted playsinline></video>
+                        <div class="mira-leitor-codigo" aria-hidden="true"></div><p id="leitor-camera-status" role="status"></p>
                         <button class="btn-secundario" onclick="window.fecharLeitorCameraGestao()" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; border: none; font-size: 11px;">Fechar</button>
                     </div>
 
@@ -225,7 +230,7 @@
             </section>
 
             <!-- SEÇÃO 3: FECHAMENTO DE CAIXA DIÁRIO -->
-            <section class="painel-unificado-bloco painel-fechamento-caixa" id="secao-fechamento-caixa">
+            <section class="painel-unificado-bloco painel-fechamento-caixa" id="suiri-bloco-caixa">
                 <div class="painel-unificado-cabecalho">
                     <div>
                         <h3 style="margin-bottom: 2px; color: var(--cor-primaria);">💵 Fechamento de Caixa</h3>
@@ -374,7 +379,7 @@
 
                 <!-- BARRA DE META DE 60% DE TAREFAS -->
                 <div style="margin-bottom: 16px; background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda);">
-                    <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--cor-texto);">Desempenho no Turno (Meta: 60%)</div>
+                    <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--cor-texto);">Desempenho no turno</div>
                     <div class="progresso-info">
                         <span>Concluído: <strong id="perfil-texto-porcentagem">0%</strong> (<span id="perfil-qtd-tarefas">0/0</span>)</span>
                         <span>Meta Mínima: <strong style="color:var(--cor-socio);">60%</strong></span>
@@ -389,7 +394,7 @@
                 <!-- BALANÇO FINANCEIRO DO COLABORADOR -->
                 <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 12px; font-weight: 700; color: var(--cor-texto);">💵 Meu Balanço Financeiro</span>
+                        <span style="font-size: 12px; font-weight: 700; color: var(--cor-texto);">💵 Resumo financeiro</span>
                         <span id="perfil-tag-contrato" class="tag-setor" style="font-size: 10px;">Fixo</span>
                     </div>
                     
@@ -418,6 +423,8 @@
                     </div>
                 </div>
 
+                <details class="suiri-detalhes suiri-editar-perfil">
+                    <summary>Editar perfil</summary>
                 <!-- CAMPO DE TELEFONE / WHATSAPP DO COLABORADOR -->
                 <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 14px;">
                     <span style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px;">📱 Meu WhatsApp</span>
@@ -440,6 +447,8 @@
                     <input type="password" id="input-confirma-senha-perfil" placeholder="Confirmar nova senha..." style="margin-bottom: 8px;">
                     <button class="btn-principal" onclick="window.atualizarPropriaSenha()" style="margin-top: 0; padding: 8px;">Atualizar Senha</button>
                 </div>
+
+                </details>
 
                 <!-- BOTÕES DA SANFONA REESTRUTURADOS SEM QUEBRA DE LINHA -->
                 <button class="btn-acordeao-perfil" onclick="toggleSanfonaPerfil('corpo-sanfona-abertas', this)">
@@ -871,6 +880,32 @@
             <hr class="divisor">
 
             <!-- REPOSIÇÃO E ESTOQUE (SOLICITAR ITEM FALTANTE POR CATEGORIA) -->
+            <section class="cartao-geral suiri-consumo" id="secao-meu-consumo">
+                <div class="consumo-cabecalho"><h3>Meu consumo</h3><span>30% de desconto</span></div>
+                <form id="form-meu-consumo" class="suiri-form">
+                    <div class="autocomplete-container">
+                        <label for="input-meu-consumo-desc">Produto</label>
+                        <input id="input-meu-consumo-desc" required maxlength="180" placeholder="Busque ou digite um item novo" autocomplete="off" aria-controls="dropdown-autocomplete-consumo">
+                        <div id="dropdown-autocomplete-consumo" class="autocomplete-dropdown"></div>
+                    </div>
+                    <div class="suiri-grid">
+                        <label>Preço por unidade (R$)<input id="input-meu-consumo-valor" inputmode="decimal" placeholder="0,00" required></label>
+                        <label>Quantidade<input id="input-meu-consumo-qtd" type="number" min="1" max="9999" step="1" value="1" required></label>
+                    </div>
+                    <p id="meu-consumo-origem" class="consumo-nota"></p>
+                    <div class="consumo-total"><span>Total com desconto</span><output id="meu-consumo-total" aria-live="polite">—</output></div>
+                    <button type="submit" class="btn-principal">Registrar consumo</button>
+                </form>
+                <details id="meu-consumo-solicitacoes">
+                    <summary>Minhas solicitações <span id="meu-consumo-pendentes"></span></summary>
+                    <div id="meu-consumo-historico" aria-live="polite"></div>
+                    <div class="consumo-acoes">
+                        <button type="button" id="meu-consumo-anterior" class="btn-secundario oculto">Anterior</button>
+                        <button type="button" id="meu-consumo-mais" class="btn-secundario oculto">Próxima página</button>
+                    </div>
+                </details>
+            </section>
+
             <section class="area-seccao" id="secao-compras">
                 <h3 style="color: var(--cor-pedido); margin-bottom: 8px;">Reposição & Estoque</h3>
                 <div class="form-insercao">
@@ -891,25 +926,6 @@
 
             <hr class="divisor">
 
-            <!-- CONSUMO RÁPIDO DO COLABORADOR COM AUTOCOMPLETE & QUANTIDADE (-30% OFF) -->
-            <section class="area-seccao cartao-geral">
-                <h3 style="color: var(--cor-primaria); margin-bottom: 6px;">🍔 Meu Consumo Rápido (-30% OFF)</h3>
-                <div class="flex-linha-mobile" style="align-items: flex-start;">
-                    <div class="autocomplete-container" style="flex: 2.5;">
-                        <input type="text" id="input-meu-consumo-desc" placeholder="Comece a digitar o produto..." oninput="window.filtrarAutocompleteConsumo(this.value)" autocomplete="off">
-                        <div id="dropdown-autocomplete-consumo" class="autocomplete-dropdown"></div>
-                    </div>
-                    <!-- Campo oculto para o valor unitário de tabela -->
-                    <input type="hidden" id="input-meu-consumo-valor">
-                    
-                    <!-- Campo de Quantidade -->
-                    <div style="flex: 0.9;">
-                        <input type="number" id="input-meu-consumo-qtd" min="1" value="1" placeholder="Qtd" title="Quantidade">
-                    </div>
-                    <button class="btn-principal" onclick="window.registrarConsumoProprio()" style="flex: 1.2; margin-top: 0;">Adicionar</button>
-                </div>
-                <p style="font-size: 11px; color: var(--texto-suave); margin-top: 4px;">* Ao selecionar o item do cardápio, os 30% de desconto são calculados sobre a quantidade.</p>
-            </section>
         </main>
 
         <!-- PÁGINA: CENTRAL DE RELATÓRIOS REFINADA -->
@@ -1115,7 +1131,7 @@
                         </div>
                     </div>
 
-                    <button class="btn-admin-roxo" onclick="gerarRelatorio()">Compilar Dados</button>
+                    <button class="btn-admin-roxo" onclick="gerarRelatorio()">Gerar relatório</button>
                     <button class="btn-secundario oculto" id="btn-imprimir-pdf" onclick="imprimirPDF()" style="margin-top: 8px; width: 100%;">Baixar Relatório em PDF</button>
                     <button class="btn-whats oculto" id="btn-whatsapp-fechamento" onclick="window.enviarResumoFechamentoWhatsApp()" style="margin-top: 8px; width: 100%; justify-content: center;">📲 Enviar Resumo no WhatsApp do Colaborador</button>
                 </div>
@@ -1443,13 +1459,26 @@
         </div>
     </div>
 
+    <div id="modal-consumo-pendencias" class="modal-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="consumo-pendencias-titulo">
+        <div class="modal-conteudo">
+            <div class="modal-header">
+                <h3 id="consumo-pendencias-titulo">Aprovar consumos</h3>
+                <button type="button" class="btn-secundario" data-fechar-suiri="modal-consumo-pendencias" aria-label="Fechar">×</button>
+            </div>
+            <p id="consumo-revisao-status" role="status" class="consumo-nota"></p>
+            <div id="consumo-revisao-lista"></div>
+            <button type="button" id="consumo-revisao-mais" class="btn-secundario oculto">Mostrar mais</button>
+        </div>
+    </div>
+
     <!-- CONEXÃO COM OS ARQUIVOS JAVASCRIPT DIVIDIDOS (ARQUITETURA SUIRI 2.0) -->
-    <script src="app-core.js?v=4"></script>
+    <script src="app-core.js?v=4.3"></script>
     <script src="app-operacional.js?v=4"></script>
-    <script src="app-gestao.js?v=4"></script>
+    <script src="app-gestao.js?v=4.3"></script>
     <script src="cardapio-original.js"></script>
-    <script src="app-empresa.js?v=4.2"></script>
-    <script src="visual-suiri.js?v=4.2"></script>
+    <script src="app-empresa.js?v=4.3"></script>
+    <script src="app-consumo.js?v=4.3"></script>
+    <script src="visual-suiri.js?v=4.3"></script>
 
     <!-- REGISTRO DO SERVICE WORKER (PWA) PROTEGIDO CONTRA ERRO FILE:// -->
     <script>

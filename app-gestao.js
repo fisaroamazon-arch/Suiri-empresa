@@ -350,76 +350,26 @@ window.carregarPedidosCompra = async function() {
 // =========================================================================
 
 let cacheCardapioConsumo = [];
+let escopoCardapioConsumo;
 
 window.inicializarCardapioConsumo = async function() {
-    const {data, error} = await cliente.from('cardapio_consumo').select('*').eq('ativo', true).order('nome_item');
-    if (error) { cacheCardapioConsumo = []; window.mostrarToast('Não foi possível carregar o cardápio: ' + error.message, 'erro'); return; }
+    const empresa = empresaAtualId;
+    const usuario = usuarioAtual?.id;
+    const escopo = usuario && empresa ? usuario + ':' + empresa : null;
+    if (escopo !== escopoCardapioConsumo) {
+        cacheCardapioConsumo = [];
+        escopoCardapioConsumo = escopo;
+    }
+    if (!escopo) return;
+    const consulta = cliente.from('cardapio_consumo').select('*').eq('ativo', true).order('nome_item').order('id');
+    const {data,error} = await window.todosRegistrosSuiri(consulta);
+    if (empresa !== empresaAtualId || usuario !== usuarioAtual?.id) return;
+    if (error) {
+        window.mostrarToast('Não foi possível carregar o cardápio: ' + error.message, 'erro');
+        return;
+    }
     cacheCardapioConsumo = data || [];
 };
-
-window.filtrarAutocompleteConsumo = function(termo) {
-    const dropdown = document.getElementById('dropdown-autocomplete-consumo');
-    if (!dropdown) return;
-
-    const busca = (termo || '').trim().toLowerCase();
-    if (busca.length === 0) {
-        dropdown.classList.remove('ativo');
-        dropdown.innerHTML = '';
-        return;
-    }
-
-    const filtrados = cacheCardapioConsumo.filter(item => 
-        item.nome_item.toLowerCase().includes(busca)
-    );
-
-    if (filtrados.length === 0) {
-        dropdown.classList.remove('ativo');
-        dropdown.innerHTML = '';
-        return;
-    }
-
-    dropdown.innerHTML = '';
-    filtrados.forEach(item => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'autocomplete-item';
-        const valorOriginal = Number(item.valor_padrao || 0).toFixed(2);
-        const valorComDesconto = (item.valor_padrao * 0.70).toFixed(2);
-
-        itemDiv.innerHTML = `
-            <span>${esc(item.nome_item)}</span>
-            <span class="autocomplete-item-preco">R$ ${valorOriginal} <small style="opacity:0.8; font-size:10px;">(-30%: R$ ${valorComDesconto})</small></span>
-        `;
-
-        itemDiv.onclick = function() {
-            window.selecionarItemAutocomplete(item.nome_item, item.valor_padrao);
-        };
-
-        dropdown.appendChild(itemDiv);
-    });
-
-    dropdown.classList.add('ativo');
-};
-
-// Ao selecionar o item, calcula e preenche diretamente sem necessitar de ajustes manuais
-window.selecionarItemAutocomplete = function(nome, valor) {
-    const inputDesc = document.getElementById('input-meu-consumo-desc');
-    const inputVal = document.getElementById('input-meu-consumo-valor');
-    const dropdown = document.getElementById('dropdown-autocomplete-consumo');
-
-    if (inputDesc) inputDesc.value = nome;
-    if (inputVal) inputVal.value = Number(valor || 0).toFixed(2);
-    if (dropdown) {
-        dropdown.classList.remove('ativo');
-        dropdown.innerHTML = '';
-    }
-};
-
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.autocomplete-container')) {
-        const dropdown = document.getElementById('dropdown-autocomplete-consumo');
-        if (dropdown) dropdown.classList.remove('ativo');
-    }
-});
 
 // Modal para Sócios/Admin gerenciarem o cardápio
 window.abrirModalGerenciarCardapio = function() {
@@ -508,7 +458,7 @@ let leitorCodigoBarrasZXing = null;
 
 window.toggleFormNovaContaGestao = function() {
     const form = document.getElementById('form-nova-conta-gestao');
-    if (form) form.classList.toggle('oculto');
+    if (form?.classList.toggle('oculto')) window.fecharLeitorCameraGestao();
 };
 
 window.alternarTipoContaGestao = function(tipo) {
@@ -516,13 +466,15 @@ window.alternarTipoContaGestao = function(tipo) {
     const inputCodigo = document.getElementById('input-conta-codigo-gestao');
     const boxFavorecido = document.getElementById('box-conta-favorecido-gestao');
 
+    window.fecharLeitorCameraGestao();
+    if (inputCodigo) inputCodigo.inputMode = tipo === 'pix' ? 'text' : 'numeric';
     if (tipo === 'pix') {
         if (labelCodigo) labelCodigo.textContent = 'Chave Pix ou Código Copia e Cola';
         if (inputCodigo) inputCodigo.placeholder = 'Cole a chave Pix ou código...';
         if (boxFavorecido) boxFavorecido.classList.remove('oculto');
     } else {
         if (labelCodigo) labelCodigo.textContent = 'Linha Digitável / Código de Barras';
-        if (inputCodigo) inputCodigo.placeholder = 'Cole ou escaneie o código do boleto...';
+        if (inputCodigo) inputCodigo.placeholder = 'Cole a linha digitável ou use a câmera';
         if (boxFavorecido) boxFavorecido.classList.add('oculto');
     }
 };
@@ -625,7 +577,7 @@ window.desenharCartoesContas = function(contas, container) {
             : '';
 
         const btnPagar = ehPendente
-            ? `<button class="btn-sucesso" style="padding:5px 10px; font-size:11px; margin-top:0; width:auto;" onclick="window.marcarContaComoPaga('${c.id}')">✓ Pagar</button>`
+            ? `<button class="btn-sucesso" style="padding:5px 10px; font-size:11px; margin-top:0; width:auto;" onclick="window.marcarContaComoPaga('${c.id}')">Marcar como paga</button>`
             : `<button class="btn-secundario" style="padding:5px 8px; font-size:10px; margin-top:0; width:auto;" onclick="window.reverterContaPendente('${c.id}')">↩ Reabrir</button>`;
 
         card.innerHTML = `
@@ -652,13 +604,14 @@ window.desenharCartoesContas = function(contas, container) {
     });
 };
 
-window.copiarCodigoConta = function(codigo) {
+window.copiarCodigoConta = async function(codigo) {
     if (!codigo) return;
-    navigator.clipboard.writeText(codigo).then(() => {
-        window.mostrarToast("Código copiado para a área de transferência!");
-    }).catch(() => {
-        prompt("Copie o código manualmente:", codigo);
-    });
+    try {
+        await navigator.clipboard.writeText(codigo);
+        window.mostrarToast('Código copiado. Use-o no aplicativo do banco.');
+    } catch {
+        prompt('Copie o código manualmente:', codigo);
+    }
 };
 
 window.salvarContaPagarGestao = async function() {
@@ -667,7 +620,11 @@ window.salvarContaPagarGestao = async function() {
     const vencimento = document.getElementById('input-conta-vencimento-gestao')?.value;
     const tipo = document.getElementById('select-conta-tipo-gestao')?.value || 'boleto';
     const categoria = document.getElementById('select-conta-categoria-gestao')?.value || 'Fornecedores';
-    const codigo = document.getElementById('input-conta-codigo-gestao')?.value.trim() || null;
+    const codigoDigitado = document.getElementById('input-conta-codigo-gestao')?.value.trim();
+    const codigo = tipo === 'boleto' && codigoDigitado ? normalizarCodigoConta(codigoDigitado, 'boleto') : codigoDigitado || null;
+    if (codigoDigitado && !codigo) {
+        return window.mostrarToast('Confira o código do boleto ou a linha digitável.', 'erro');
+    }
     const favorecido = document.getElementById('input-conta-favorecido-gestao')?.value.trim() || null;
 
     if (!fornecedor || isNaN(valor) || valor <= 0 || !vencimento) {
@@ -740,42 +697,80 @@ window.excluirContaPagar = async function(id) {
     }
 };
 
-// Leitor de Código de Barras / QR Code com Câmera
-window.abrirLeitorCameraGestao = function() {
+// Leitura local pela câmera. O código pode ser colado a qualquer momento.
+function normalizarCodigoConta(texto, tipo) {
+    const codigo = String(texto || '').trim();
+    if (tipo === 'pix') return /^000201/.test(codigo) && /br\.gov\.bcb\.pix/i.test(codigo) ? codigo : null;
+    if (!/^[\d.\s-]+$/.test(codigo)) return null;
+    const digitos = codigo.replace(/\D/g, '');
+    return [44,47,48].includes(digitos.length) ? digitos : null;
+}
+
+window.abrirLeitorCameraGestao = async function() {
+    if (leitorCodigoBarrasZXing) return;
     const box = document.getElementById('box-leitor-camera-gestao');
     const video = document.getElementById('video-leitor-camera-gestao');
-    if (!box || !video) return;
-
-    if (typeof ZXing === 'undefined') {
-        return window.mostrarToast("Leitor de código indisponível.", "erro");
+    const status = document.getElementById('leitor-camera-status');
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || typeof ZXing === 'undefined') {
+        return window.mostrarToast('Câmera indisponível. Digite ou cole o código.', 'erro');
     }
 
+    const tipo = document.getElementById('select-conta-tipo-gestao').value;
+    const pix = tipo === 'pix';
+    const formatos = pix ? [ZXing.BarcodeFormat.QR_CODE] : [ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODE_128];
+    const dicas = new Map([[ZXing.DecodeHintType.POSSIBLE_FORMATS, formatos], [ZXing.DecodeHintType.TRY_HARDER, true]]);
+    const leitor = new ZXing.BrowserMultiFormatReader(dicas);
+    const sessao = {leitor, stream:null};
+    leitorCodigoBarrasZXing = sessao;
     box.classList.remove('oculto');
-    leitorCodigoBarrasZXing = new ZXing.BrowserMultiFormatReader();
+    status.textContent = 'Abrindo câmera…';
 
-    leitorCodigoBarrasZXing.decodeFromVideoDevice(null, video, (result, err) => {
-        if (result) {
-            const codigoLido = result.getText();
-            const inputCodigo = document.getElementById('input-conta-codigo-gestao');
-            if (inputCodigo) inputCodigo.value = codigoLido;
-            if (typeof window.somConcluirTarefa === 'function') window.somConcluirTarefa();
-            window.mostrarToast("Código lido com sucesso!");
-            window.fecharLeitorCameraGestao();
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio:false, video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
+        });
+        if (leitorCodigoBarrasZXing !== sessao) {
+            stream.getTracks().forEach(track => track.stop());
+            return;
         }
-    }).catch(err => {
-        window.mostrarToast("Não foi possível acessar a câmera.", "erro");
+        sessao.stream = stream;
+        status.textContent = pix ? 'Enquadre o QR Code Pix.' : 'Enquadre o código de barras inteiro.';
+        await leitor.decodeFromStream(stream, video, resultado => {
+            if (!resultado || leitorCodigoBarrasZXing !== sessao) return;
+            const codigo = normalizarCodigoConta(resultado.getText(), tipo);
+            if (!codigo) {
+                status.textContent = pix ? 'Aponte para um QR Code Pix.' : 'Aponte para um código de boleto.';
+                return;
+            }
+            const input = document.getElementById('input-conta-codigo-gestao');
+            input.value = codigo;
+            window.fecharLeitorCameraGestao();
+            input.focus();
+            window.mostrarToast('Código preenchido. Confira os dados da conta.');
+        });
+    } catch (erro) {
+        if (leitorCodigoBarrasZXing !== sessao) return;
         window.fecharLeitorCameraGestao();
-    });
+        window.mostrarToast(erro.name === 'NotAllowedError'
+            ? 'Permita o uso da câmera ou cole o código da conta.'
+            : 'Não foi possível abrir a câmera. Digite ou cole o código.', 'erro');
+    }
 };
 
 window.fecharLeitorCameraGestao = function() {
-    const box = document.getElementById('box-leitor-camera-gestao');
-    if (box) box.classList.add('oculto');
-    if (leitorCodigoBarrasZXing) {
-        leitorCodigoBarrasZXing.reset();
-        leitorCodigoBarrasZXing = null;
-    }
+    document.getElementById('box-leitor-camera-gestao')?.classList.add('oculto');
+    const sessao = leitorCodigoBarrasZXing;
+    leitorCodigoBarrasZXing = null;
+    if (!sessao) return;
+    const video = document.getElementById('video-leitor-camera-gestao');
+    sessao.leitor.reset();
+    sessao.stream?.getTracks().forEach(track => { if (track.readyState !== 'ended') track.stop(); });
+    if (video) video.srcObject = null;
 };
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) window.fecharLeitorCameraGestao();
+});
+window.addEventListener('pagehide', () => window.fecharLeitorCameraGestao());
 
 // =========================================================================
 // 💵 4. SEGUIMENTO: FECHAMENTO DE CAIXA DIÁRIO & EXCLUSÃO SEGURA
@@ -1188,7 +1183,7 @@ window.gerarRelatorio = async function() {
         const { data: dV, error: erroConsulta4 } = await window.todosRegistrosSuiri(qV); if (erroConsulta4) throw erroConsulta4; vales = dV || [];
 
         let qC = cliente.from('itens_comprados').select('*').gte('data_compra', dataInicio).lte('data_compra', dataFim);
-        if (filtroFunc !== 'todos') qC = qC.or(`perfil_id.eq.${filtroFunc},registrado_por.eq.${filtroFunc}`);
+        if (filtroFunc !== 'todos') qC = qC.eq('perfil_id', filtroFunc);
         const { data: dC, error: erroConsulta5 } = await window.todosRegistrosSuiri(qC); if (erroConsulta5) throw erroConsulta5; compras = dC || [];
     }
 
@@ -1251,7 +1246,7 @@ window.gerarRelatorio = async function() {
 
         if (filtroFunc !== 'todos') {
             qV6 = qV6.eq('perfil_id', filtroFunc);
-            qC6 = qC6.or(`perfil_id.eq.${filtroFunc},registrado_por.eq.${filtroFunc}`);
+            qC6 = qC6.eq('perfil_id', filtroFunc);
         }
 
         const [{data:vales6M,error:erroV6},{data:compras6M,error:erroC6}]=await Promise.all([window.todosRegistrosSuiri(qV6),window.todosRegistrosSuiri(qC6)]);

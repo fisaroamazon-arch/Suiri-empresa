@@ -261,3 +261,44 @@ html[data-tema="escuro"] .tag-setor {background:var(--accent-soft)!important;col
 
 #confirmar-exclusao-suiri .btn-erro {background:#bd2541;color:#fff;border:1px solid #bd2541;}
 #confirmar-exclusao-suiri .btn-erro:hover {background:#a91f39;}
+
+/* Gestão e consumo */
+#conteudo-gestao-compras-contas [hidden] {display:none!important;}
+.suiri-gestao-titulo {margin:0 0 12px;}
+#conteudo-gestao-compras-contas .suiri-atalhos {margin:0 0 16px;display:flex;flex-wrap:wrap;gap:8px;}
+#conteudo-gestao-compras-contas .suiri-atalhos button {min-height:42px;width:auto;padding-inline:12px;font-size:13px;background:var(--vidro-bg);}
+#conteudo-gestao-compras-contas .suiri-atalhos button[aria-pressed="true"] {background:var(--accent-soft);color:var(--accent-text);border-color:var(--cor-primaria);}
+#conteudo-gestao-compras-contas .suiri-kpis > div > span {padding-inline-end:0;font-size:12px;}
+#conteudo-gestao-compras-contas .painel-unificado-cabecalho h3,
+#conteudo-operacional .cartao-geral h3 {line-height:1.35;}
+.suiri-consumo {max-width:100%;}
+.consumo-cabecalho,.consumo-total,.consumo-acoes {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.consumo-cabecalho {margin-bottom:14px;}
+.consumo-cabecalho span {color:var(--accent-text);font-size:12px;font-weight:700;}
+.suiri-consumo .suiri-form,.consumo-revisao-item {gap:10px;}
+.suiri-consumo .autocomplete-container label,.consumo-revisao-item label {font-size:13px;}
+.suiri-consumo .autocomplete-item {width:100%;min-height:42px;text-align:left;background:var(--vidro-bg);color:var(--cor-texto);border:0;border-bottom:1px solid var(--line);border-radius:0;font:inherit;}
+.suiri-consumo input[readonly] {color:var(--texto-suave);}
+.consumo-total {padding:10px 0;border-top:1px solid var(--line);font-size:13px;}
+.consumo-total output {color:var(--cor-texto);font-size:17px;font-weight:700;}
+.consumo-nota,.consumo-historico-linha span {color:var(--texto-suave);font-size:13px;line-height:1.45;}
+.consumo-nota:empty {display:none;}
+#meu-consumo-solicitacoes {border-top:1px solid var(--line);margin-top:14px;padding-top:12px;}
+#meu-consumo-solicitacoes summary {font-size:13px;cursor:pointer;}
+.consumo-historico-linha {padding:10px 0;display:grid;gap:3px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;}
+#btn-consumo-pendencias {margin-inline-start:auto;position:relative;}
+#btn-consumo-pendencias + .config-marca {margin-inline-start:0;}
+#badge-consumo-pendencias {position:absolute;top:-5px;right:-5px;min-width:18px;line-height:18px;border-radius:12px;padding-inline:4px;font-size:10px;text-align:center;background:var(--accent-text);color:var(--vidro-bg);}
+.consumo-revisao-item {border-top:1px solid var(--line);padding:14px 0;overflow-wrap:anywhere;}
+.consumo-acoes button {flex:1;margin:0;min-height:42px;}
+#btn-leitor-camera-gestao {width:auto;margin:0;min-height:38px;padding:6px 10px;}
+#leitor-camera-status {position:absolute;bottom:0;inset-inline:0;margin:0;padding:8px;color:white;background:#09151edb;text-align:center;}
+.suiri-detalhes {border-bottom:1px solid var(--line);margin-bottom:12px;padding:0 0 10px;}
+.suiri-detalhes summary {cursor:pointer;padding:8px 0;color:var(--cor-texto);font-weight:600;font-size:13px;}
+.suiri-editar-perfil {margin-bottom:14px;}
+#conteudo-operacional .cartao-geral:not(.cartao-ponto),#conteudo-gestao-compras-contas .painel-unificado-bloco {background:var(--vidro-bg);}
+#conteudo-gestao-compras-contas .painel-unificado-cabecalho h3 {color:var(--cor-texto)!important;}
+#conteudo-gestao-compras-contas .painel-unificado-cabecalho p,.cartao-conta-detalhes {font-size:13px!important;line-height:1.45;}
+.suiri-marca-app:has(.consumo-sino:not(.oculto)) {column-gap:8px;}
+#badge-consumo-pendencias {top:0;right:0;}
+#video-leitor-camera-gestao {object-fit:contain;}
