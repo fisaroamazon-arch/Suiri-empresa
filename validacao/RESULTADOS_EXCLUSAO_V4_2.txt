@@ -1,0 +1,29 @@
+unique element IDs and all static handler bindings: PASS
+admin nav: 7 tabs with SVG icons and original Suiri logo PASS
+customer / escape text: PASS
+sale total 37,02 / automatic menu: PASS
+partial payment / balance 27,02: PASS
+CSV trigger / PDF report content: PASS (renderer mocked)
+text menu preview and save: PASS
+manual light/dark: V4 setting, reference CSS and both selectors synchronized PASS
+supplier and payable autocomplete: PASS
+legacy account payable insert: PASS
+legacy purchase request: PASS
+purchase report date range: PASS
+commercial pagination beyond 1000 records: PASS
+staff 3 tabs / admin forbidden: PASS
+clock in/out: PASS
+server rejection is not offline success: PASS
+swipe between permitted screens: PASS
+two-step signup / CNPJ confirmation / staff role: PASS
+offline clock in/out then replay: one complete record PASS
+menu decimal comma / thousands / dedupe / invalid line: PASS
+deletion: wrong CNPJ stays open; mismatch and cancel perform no RPC: PASS
+deletion: real last-admin rejection remains visible and preserves account: PASS
+deletion: formatted CNPJ reaches RPC; RPC and file errors persist for retry: PASS
+deletion: pending request blocks double submit, cancel and Escape: PASS
+deletion: correct phrase deletes local Auth/profile then signs out: PASS
+deletion: CNPJ alone deletes local company and accounts; other company survives: PASS
+uncaught DOM errors: 0
+
+Navegador: confirmação em 320 e 390 px, temas claro/escuro, CNPJ incorreto e erro simulado persistentes, sem transbordamento horizontal. Dados fictícios; nenhuma conta real alterada.

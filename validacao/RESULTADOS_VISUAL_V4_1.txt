@@ -1,0 +1,30 @@
+unique element IDs and all static handler bindings: PASS
+admin nav: 7 tabs with SVG icons and original Suiri logo PASS
+customer / escape text: PASS
+sale total 37,02 / automatic menu: PASS
+partial payment / balance 27,02: PASS
+CSV trigger / PDF report content: PASS (renderer mocked)
+text menu preview and save: PASS
+manual light/dark: V4 setting, reference CSS and both selectors synchronized PASS
+supplier and payable autocomplete: PASS
+legacy account payable insert: PASS
+legacy purchase request: PASS
+purchase report date range: PASS
+commercial pagination beyond 1000 records: PASS
+staff 3 tabs / admin forbidden: PASS
+clock in/out: PASS
+server rejection is not offline success: PASS
+swipe between permitted screens: PASS
+two-step signup / CNPJ confirmation / staff role: PASS
+offline clock in/out then replay: one complete record PASS
+menu decimal comma / thousands / dedupe / invalid line: PASS
+uncaught DOM errors: 0
+
+Conferência em navegador com dados fictícios:
+- Logo e faixa da marca comparadas com a referência publicada.
+- Tema claro e escuro conferidos por controles da interface.
+- Navegação de sete abas com SVG preservada.
+- Sem rolagem horizontal no financeiro em quadros de 320 px (área útil 305 px) e 390 px (área útil 375 px).
+- Formulário de venda em 320 px: campos visíveis e total R$ 10,00 para 2 x R$ 5,00.
+- Tela ampla em quadro de 760 px conferida.
+- Abertura e fechamento das configurações de aparência na entrada conferidos.

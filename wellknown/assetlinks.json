@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.netlify.sabordacostafloripa.twa",
+        "sha256_cert_fingerprints": ["59:88:3E:65:B4:EA:82:0D:29:4A:9C:45:F3:59:2C:20:11:99:35:3F:4E:E5:F4:B3:61:F0:9E:2F:B1:E8:59:4D"]
+      }
+    }]

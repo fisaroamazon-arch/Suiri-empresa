@@ -1,0 +1,7 @@
+Use INSTALAR_SQL_NO_CELULAR.html na pasta principal para copiar com facilidade.
+Execute os arquivos 01 a 06 no SQL Editor, um por vez.
+Depois execute 07_APLICAR.sql.
+Cada envio deve mostrar ENVIO X DE 6 RECEBIDO.
+A ultima etapa deve mostrar SUIRI V4 INSTALADA.
+Se uma parte estiver incompleta, a instalacao nao e aplicada.
+Este metodo usa o MESMO SQL da versao V4, sem excluir ou simplificar funcoes.

@@ -1,0 +1,74 @@
+Suiri Empresas V4 — resultados automatizados com dados fictícios
+PostgreSQL/PGlite e JSDOM. Não são testes no Supabase real nem de renderização em navegador.
+
+resultado-banco.txt
+migration: PASS
+migration rerun: PASS
+first admin / next employee / other company: PASS
+RLS: no promotion, no cross-company data, last admin: PASS
+customer, sale cents, automatic catalog, idempotency: PASS
+partial payment / overpayment rejected / employee rejected / reversal / cancellation: PASS
+catalog import: preserve/update prices: PASS
+read acknowledgment preserves both readers: PASS
+member deletion and authorization: PASS
+company deletion scoped and complete: PASS
+Auth signup reserves first administrator before email confirmation; metadata cannot grant admin: PASS
+bigint company schema: PASS
+
+resultado-extra.txt
+attendance approval denied to staff, automatic freelance alert: PASS
+task ownership / definition guard / immutable execution history: PASS
+private messages cannot be read or acknowledged by another member: PASS
+member deletion preserves company payables, sales and receipts: PASS
+last admin fails preflight before deleting avatar: PASS
+ambiguous legacy data aborts migration without data loss: PASS
+
+resultado-interface.txt
+unique element IDs and all static handler bindings: PASS
+admin nav: 7 tabs PASS
+customer / escape text: PASS
+sale total 37,02 / automatic menu: PASS
+partial payment / balance 27,02: PASS
+CSV trigger / PDF report content: PASS (renderer mocked)
+text menu preview and save: PASS
+manual light/dark: PASS (DOM only)
+supplier and payable autocomplete: PASS
+legacy account payable insert: PASS
+legacy purchase request: PASS
+purchase report date range: PASS
+commercial pagination beyond 1000 records: PASS
+staff 3 tabs / admin forbidden: PASS
+clock in/out: PASS
+server rejection is not offline success: PASS
+swipe between permitted screens: PASS
+two-step signup / CNPJ confirmation / staff role: PASS
+offline clock in/out then replay: one complete record PASS
+menu decimal comma / thousands / dedupe / invalid line: PASS
+uncaught DOM errors: 0
+
+Referências HTML/JSON e SQL embutido no guia: PASS
+Sintaxe dos scripts: PASS
+
+Instalador em blocos para celular:
+missing parts: refused, business schema unchanged PASS
+corrupted copy: refused before any application migration PASS
+all parts: same full migration applied atomically, staging removed PASS
+Auth trigger / first admin / following employee via installed migration PASS
+retry installer on existing V4: members preserved PASS
+offline guide / seven steps / exact SQL text and confirmation UI PASS
+
+Recuperação de diferenças na colagem:
+recovery from original / Auth roles PASS
+recovery from crlf / Auth roles PASS
+recovery from indentacao / Auth roles PASS
+recovery from crlf+indentacao / Auth roles PASS
+non-format content changes blocked; only bad part identified PASS
+guide resumes directly at corrected step 7 PASS
+
+Regressão do instalador em blocos:
+missing parts: refused, business schema unchanged PASS
+corrupted copy: refused before any application migration PASS
+all parts: same full migration applied atomically, staging removed PASS
+Auth trigger / first admin / following employee via installed migration PASS
+retry installer on existing V4: members preserved PASS
+offline guide / seven steps / exact SQL text and confirmation UI PASS
