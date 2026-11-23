@@ -1343,13 +1343,16 @@ window.cobrarTarefaWhatsApp = function(telefone, nome, titulo, limite) {
 // ------------------ PAINEL AO VIVO COM AVATARES & FILTRO (06:00 ÀS 23:30) ------------------
 let cacheTimelineOperacionalDia = [];
 
+let consultaPainelAoVivo = 0;
 window.carregarPainelAoVivo = async function() {
+    if (!usuarioAtual || !empresaAtualId) return;
+    const consulta = ++consultaPainelAoVivo;
+    const uid = usuarioAtual.id;
     const containerGrade = document.getElementById('grade-colaboradores-painel');
     const containerHistorico = document.getElementById('lista-historico-diario');
     const selFiltroColab = document.getElementById('filtro-historico-colab');
     if (!containerGrade || !containerHistorico) return;
 
-    containerGrade.innerHTML = '';
     const listaFuncionarios = Object.values(mapaPerfis || {});
 
     if (listaFuncionarios.length === 0) {
@@ -1373,7 +1376,9 @@ window.carregarPainelAoVivo = async function() {
     if (empresaAtualId) {
         queryPontos = queryPontos.eq('empresa_id', empresaAtualId);
     }
-    const { data: pontosHoje } = await queryPontos;
+    const { data: pontosHoje, error } = await queryPontos;
+    if (consulta !== consultaPainelAoVivo || uid !== usuarioAtual?.id || error) return;
+    containerGrade.innerHTML = '';
     const mapaPontoHoje = {};
     (pontosHoje || []).forEach(p => { mapaPontoHoje[p.perfil_id] = p; });
 

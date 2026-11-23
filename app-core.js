@@ -687,13 +687,6 @@ window.alternarTelas = function(tela) {
         btnPerfil?.classList.remove('oculto');
         btnAutonoma?.classList.add('oculto');
 
-        const selInspecao = document.getElementById('select-inspecionar-colab');
-        if (selInspecao && selInspecao.options.length <= 1) {
-            selInspecao.innerHTML = '<option value="">Selecione um funcionário...</option>';
-            Object.values(mapaPerfis).forEach(p => {
-                selInspecao.innerHTML += `<option value="${p.id}">${esc(p.nome)}</option>`;
-            });
-        }
     } else if (tela === 'admin') {
         cabecalho?.classList.add('oculto');
         admin?.classList.remove('oculto');
@@ -777,12 +770,10 @@ window.salvarMeuWhatsApp = async function() {
 
 // ------------------ GESTÃO ADMINISTRATIVA E CARGAS DE PERMISSÕES ------------------
 window.prepararTelaAdministracao = function() {
-    const selColab = document.getElementById('admin-select-colab');
-    const selSetorFunc = document.getElementById('admin-select-func-setor');
-    if (!selColab || !selSetorFunc) return;
-
-    selColab.innerHTML = '<option value="">Selecione o colaborador...</option>';
-    selSetorFunc.innerHTML = '<option value="">Colaborador</option>';
+    const selColab = document.getElementById('select-inspecionar-colab');
+    if (!selColab) return;
+    const anterior = selColab.value;
+    selColab.innerHTML = '<option value="">Selecione o funcionário...</option>';
 
     Object.values(mapaPerfis).forEach(p => {
         let papel = 'Funcionário';
@@ -792,10 +783,20 @@ window.prepararTelaAdministracao = function() {
 
         const permCaixaStr = p.pode_fechar_caixa ? ' • 💵 Caixa' : '';
         selColab.innerHTML += `<option value="${p.id}">${esc(p.nome)} (${papel} - ${esc(p.setor || 'Sem setor')}${permCaixaStr})</option>`;
-        selSetorFunc.innerHTML += `<option value="${p.id}">${esc(p.nome)}</option>`;
+
     });
 
-    document.getElementById('admin-box-permissoes')?.classList.add('oculto');
+    selColab.value = mapaPerfis[anterior] ? anterior : '';
+    window.selecionarFuncionarioAdmin(selColab.value);
+};
+
+window.selecionarFuncionarioAdmin = function(id) {
+    if (perfilAtual?.is_admin) {
+        window.carregarDetalhesCargos(id);
+        const setor = document.getElementById('admin-select-novo-setor');
+        if (setor) setor.value = mapaPerfis[id]?.setor || '';
+    }
+    return window.inspecionarColaborador(id);
 };
 
 window.carregarDetalhesCargos = function(id) {
@@ -853,7 +854,7 @@ window.toggleBoxPermissoes = function(ativo) {
 };
 
 window.salvarConfiguracaoCargo = async function() {
-    const selColab = document.getElementById('admin-select-colab');
+    const selColab = document.getElementById('select-inspecionar-colab');
     const id = selColab?.value;
     if (!id) return window.mostrarToast("Selecione um funcionário.", "erro");
 
@@ -894,7 +895,7 @@ window.salvarConfiguracaoCargo = async function() {
 };
 
 window.revogarTodosCargosModal = async function() {
-    const selColab = document.getElementById('admin-select-colab');
+    const selColab = document.getElementById('select-inspecionar-colab');
     const id = selColab?.value;
     if (!id) return window.mostrarToast("Selecione um funcionário.", "erro");
 
@@ -925,7 +926,7 @@ window.revogarTodosCargosModal = async function() {
 };
 
 window.transferirSetorColaborador = async function() {
-    const id = document.getElementById('admin-select-func-setor')?.value;
+    const id = document.getElementById('select-inspecionar-colab')?.value;
     const novoSetor = document.getElementById('admin-select-novo-setor')?.value;
 
     if (!id || !novoSetor) return window.mostrarToast("Selecione o colaborador e o novo setor.", "erro");
@@ -967,7 +968,11 @@ window.alternarCamposPresencaInspecao = function(status) {
     if (boxAtestado) boxAtestado.style.display = (status === 'atestado') ? 'block' : 'none';
 };
 
+let consultaFuncionarioAdmin = 0;
 window.inspecionarColaborador = async function(colabId) {
+    const consulta = ++consultaFuncionarioAdmin;
+    const usuario = usuarioAtual?.id;
+    const consultaAtual = () => consulta === consultaFuncionarioAdmin && usuario === usuarioAtual?.id;
     const card = document.getElementById('resultado-inspecao-colab');
     const dadosFinEl = document.getElementById('inspecao-dados-financeiros');
     const ultimasAcoesEl = document.getElementById('inspecao-ultimas-acoes');
@@ -977,7 +982,8 @@ window.inspecionarColaborador = async function(colabId) {
     const inputNovoWhats = document.getElementById('input-novo-whatsapp-inspecao');
     const listaConsumoFechamento = document.getElementById('inspecao-lista-consumo-fechamento');
     
-    if(!colabId) { if(card) card.classList.add('oculto'); return; }
+    card?.classList.add('oculto');
+    if (!colabId) return;
 
     const colabData = mapaPerfis[colabId] || {};
 
@@ -1033,6 +1039,7 @@ window.inspecionarColaborador = async function(colabId) {
     }
 
     const { data: comprasPendentes } = await queryCompras;
+    if (!consultaAtual()) return;
 
     const totalVales = valesPendentes?.reduce((acc, v) => acc + Number(v.valor), 0) || 0;
     const totalCompras = comprasPendentes?.reduce((acc, c) => acc + Number(c.valor_final), 0) || 0;
@@ -1118,6 +1125,7 @@ window.inspecionarColaborador = async function(colabId) {
             .order('criado_em', { ascending: false })
             .limit(3);
 
+        if (!consultaAtual()) return;
         ultimasAcoesEl.innerHTML = '';
         if (ultimasTarefas && ultimasTarefas.length > 0) {
             ultimasTarefas.forEach(a => {
@@ -2055,6 +2063,7 @@ window.iniciarAppSeguro = async function() {
         document.getElementById('vinculo-pendente')?.classList.remove('oculto');
         return;
     }
+    document.getElementById('abertura-suiri')?.classList.add('oculto');
     telaLogin?.classList.add('oculto'); telaApp?.classList.remove('oculto');
 
     await window.carregarDadosEmpresa();
@@ -2168,11 +2177,8 @@ window.iniciarAppSeguro = async function() {
         funcs?.forEach(f => selFuncRelatorio.innerHTML += `<option value="${f.id}">${esc(f.nome)}</option>`);
     }
 
-    const selInspecaoRelatorios = document.getElementById('select-inspecionar-colab');
-    if (selInspecaoRelatorios) {
-        selInspecaoRelatorios.innerHTML = '<option value="">Selecione um funcionário...</option>';
-        funcs?.forEach(f => selInspecaoRelatorios.innerHTML += `<option value="${f.id}">${esc(f.nome)}</option>`);
-    }
+    document.getElementById('select-inspecionar-colab').value = '';
+    window.prepararTelaAdministracao();
 
     if(typeof window.carregarTarefas === 'function') window.carregarTarefas();
     if(typeof window.carregarAvisos === 'function') window.carregarAvisos();
@@ -2191,7 +2197,7 @@ window.iniciarAppSeguro = async function() {
             window.alternarTelas('gestao');
         } else if (telaGravada === 'relatorios' && podeVerRelatorios) {
             window.alternarTelas('relatorios');
-        } else if (telaGravada === 'admin' && (isAdmin || isSocio)) {
+        } else if (telaGravada === 'admin' && (isAdmin || podeVerRelatorios)) {
             window.alternarTelas('admin');
         } else {
             window.atualizarVisualCadeadosHome('operacao');
@@ -2213,18 +2219,27 @@ window.fazerLogoff = async function() {
 };
 
 window.verificarSessao = async function() {
-    if (!cliente) return;
-    
-    const { data: { session }, error } = await cliente.auth.getSession();
-    
-    if (session && session.user && !error) { 
-        usuarioAtual = session.user; 
-        await window.iniciarApp(); 
-    } else { 
-        const telaApp = document.getElementById('tela-app');
-        const telaLogin = document.getElementById('tela-login');
-        if (telaApp) telaApp.classList.add('oculto'); 
-        if (telaLogin) telaLogin.classList.remove('oculto'); 
+    const abertura = document.getElementById('abertura-suiri');
+    const telaLogin = document.getElementById('tela-login');
+    const telaApp = document.getElementById('tela-app');
+    try {
+        if (!cliente) throw new Error('A conexão com o serviço de login está indisponível.');
+        const {data: {session}, error} = await cliente.auth.getSession();
+        if (error) throw error;
+        if (session?.user) {
+            usuarioAtual = session.user;
+            await window.iniciarApp();
+        }
+    } catch (erro) {
+        const mensagem = document.getElementById('msg-erro');
+        if (mensagem) {
+            mensagem.textContent = 'Não foi possível recuperar a sessão. Confira a conexão e tente novamente.';
+            mensagem.classList.remove('oculto');
+        }
+        console.error(erro);
+    } finally {
+        abertura?.classList.add('oculto');
+        if (telaApp?.classList.contains('oculto')) telaLogin?.classList.remove('oculto');
     }
 };
 
@@ -2238,6 +2253,7 @@ if (cliente && cliente.auth) {
         } else if (event === 'PASSWORD_RECOVERY') {
             setTimeout(() => window.abrirRecuperacaoSuiri(), 0);
         } else if (event === 'SIGNED_OUT') {
+            window.pararInterfaceSuiri?.();
             usuarioAtual = null; perfilAtual = null; empresaAtualId = null;
             window.fecharLeitorCameraGestao?.();
             window.inicializarCardapioConsumo?.();

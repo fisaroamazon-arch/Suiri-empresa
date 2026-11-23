@@ -17,7 +17,7 @@
     <!-- Conexão com o CSS -->
     <link rel="stylesheet" href="style.css?v=4.1">
     <link rel="stylesheet" href="marca.css?v=4.1">
-    <link rel="stylesheet" href="visual-suiri.css?v=4.3">
+    <link rel="stylesheet" href="visual-suiri.css?v=4.3.2">
 </head>
 <body>
     <dialog id="config-visual" aria-labelledby="config-visual-titulo"><div class="suiri-dialog-cabecalho"><h2 id="config-visual-titulo">Configurações</h2><button type="button" id="fechar-aparencia-login" aria-label="Fechar configurações">×</button></div><label class="opcao-tema" for="tema-interface"><span>Tema</span><select id="tema-interface"><option value="sistema">Automático</option><option value="claro">Claro</option><option value="escuro">Escuro</option></select></label><p class="suiri-dialog-dica">A aparência acompanha sua escolha em todas as telas.</p></dialog>
@@ -31,7 +31,9 @@
     </div>
 
     <!-- TELA DE LOGIN -->
-    <div id="tela-login" class="container">
+    <div id="abertura-suiri" class="container" role="status">Abrindo o Suíri Empresa…</div>
+    <noscript>Ative o JavaScript para abrir o Suíri Empresa.</noscript>
+    <div id="tela-login" class="container oculto">
         <div class="card-login">
             <div class="faixa-marca suiri-marca-login"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri" width="154" height="77"></span><span class="empresa">Empresa</span></div><button type="button" class="config-marca" id="abrir-aparencia-login" aria-label="Configurações de aparência"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5m4 0h9M3 17h11m4 0h3"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></button></div>
             <h1 class="logo-estilizada" id="login-logo-titulo">Suiri</h1>
@@ -59,12 +61,11 @@
 
     <!-- TELA PRINCIPAL DO APP -->
     <div id="tela-app" class="container oculto">
-        <div class="faixa-marca suiri-marca-app"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri" width="154" height="77"></span><span class="empresa">Empresa</span></div><button type="button" class="config-marca" id="abrir-ajustes-marca" aria-label="Abrir ajustes"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5m4 0h9M3 17h11m4 0h3"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg></button></div>
+        <div class="faixa-marca suiri-marca-app"><div class="assinatura"><span class="marca-recorte"><img src="marca-suiri.png" alt="Suiri" width="154" height="77"></span><span class="empresa">Empresa</span></div><button type="button" id="suiri-trocar-usuario" class="suiri-trocar-usuario" aria-label="Trocar usuário">
+            <span id="suiri-foto-usuario" aria-hidden="true"></span><small>Trocar usuário</small>
+        </button></div>
+
         
-        <button type="button" id="btn-consumo-pendencias" class="config-marca oculto" aria-label="Aprovações de consumo" title="Aprovações de consumo">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
-            <span id="badge-consumo-pendencias" class="oculto"></span>
-        </button>
 
         <!-- BARRA SUPERIOR FIXA COMPACTA -->
         <nav class="botoes-topo">
@@ -91,7 +92,7 @@
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
-                <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" title="Atualizar dados agora">🔄</button>
+                <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" aria-label="Atualizar dados agora"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-5L3 9m0-5v5h5m-4 4a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/></svg></button>
                 <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="operacao" onclick="window.alternarTravamentoHome('operacao')" title="Definir Operação como Página Inicial">🔓</button>
             </div>
         </header>
@@ -107,7 +108,7 @@
                         <p style="font-size: 11px; color: var(--texto-suave);">Itens pendentes solicitados pela equipe</p>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px;">
-                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" title="Atualizar dados agora">🔄</button>
+                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" aria-label="Atualizar dados agora"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-5L3 9m0-5v5h5m-4 4a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/></svg></button>
                         <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="gestao" onclick="window.alternarTravamentoHome('gestao')" title="Definir Gestão como Página Inicial">🔓</button>
                         <button class="btn-secundario" onclick="alternarTelas('operacao')">← Voltar</button>
                     </div>
@@ -367,7 +368,7 @@
                         <p style="font-size: 12px; color: var(--texto-suave);">Visão geral, metas e atividades</p>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px;">
-                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" title="Atualizar dados agora">🔄</button>
+                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" aria-label="Atualizar dados agora"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-5L3 9m0-5v5h5m-4 4a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/></svg></button>
                         <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="perfil" onclick="window.alternarTravamentoHome('perfil')" title="Definir Perfil como Página Inicial">🔓</button>
                         <button class="btn-secundario" onclick="fecharPainelPerfil()">← Voltar</button>
                     </div>
@@ -486,7 +487,7 @@
                         <p style="font-size: 12px; color: var(--texto-suave);">Status em tempo real de cada colaborador</p>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px;">
-                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" title="Atualizar dados agora">🔄</button>
+                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" aria-label="Atualizar dados agora"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-5L3 9m0-5v5h5m-4 4a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/></svg></button>
                         <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="painel" onclick="window.alternarTravamentoHome('painel')" title="Definir Painel ao Vivo como Página Inicial">🔓</button>
                         <button id="btn-perfil-empresa-painel" class="btn-secundario oculto btn-admin-only" onclick="window.abrirModalPerfilEmpresa()">🏢 Empresa</button>
                         <button class="btn-secundario" onclick="fecharPainelAoVivo()">← Voltar</button>
@@ -515,24 +516,45 @@
 
         <!-- PÁGINA: CONFIGURAÇÕES ADMINISTRATIVAS (ADMIN, SÓCIOS E GERENTES) -->
         <main id="conteudo-admin" class="oculto">
-            <section class="cartao-geral cartao-admin">
+            <section class="cartao-geral cartao-admin" data-suiri-admin>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                     <h3 style="margin-bottom: 0;">⚙️ Gestão Administrativa</h3>
                     <div style="display:flex; align-items:center; gap:6px;">
-                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" title="Atualizar dados agora">🔄</button>
+                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" aria-label="Atualizar dados agora"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-5L3 9m0-5v5h5m-4 4a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/></svg></button>
                         <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="admin" onclick="window.alternarTravamentoHome('admin')" title="Definir Admin como Página Inicial">🔓</button>
                         <button class="btn-secundario" onclick="alternarTelas('operacao')">← Voltar</button>
                     </div>
                 </div>
 
-                <!-- GESTÃO DE CARGOS: ADMIN, SÓCIO E GERENTE -->
-                <div class="form-insercao" style="margin-bottom: 16px;">
-                    <label style="color: var(--cor-admin); font-weight: 700;">Promover / Gerir Cargos</label>
-                    <select id="admin-select-colab" onchange="window.carregarDetalhesCargos(this.value)">
-                        <option value="">Selecione o colaborador...</option>
-                    </select>
+                <!-- BOTÃO PARA GERIR CARDÁPIO DE CONSUMO INTERNO -->
+                <div style="margin-top: 16px; border-top: var(--vidro-borda); padding-top: 14px;">
+                    <button class="btn-secundario" onclick="window.abrirModalGerenciarCardapio()" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 700; color: var(--cor-primaria);">📋 Gerenciar Itens do Cardápio de Consumo</button>
+                </div>
+            </section>
+            <!-- BLOCO EM DESTAQUE: INSPEÇÃO DE EQUIPE & DESEMPENHO -->
+            <section class="cartao-geral cartao-admin funcionarios-admin" id="bloco-funcionarios-admin">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <h3 style="margin-bottom: 2px; color: var(--cor-socio);">Funcionários</h3>
+                        <p style="font-size: 11px; color: var(--texto-suave);">Consulte o histórico e gerencie os dados do funcionário.</p>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" aria-label="Atualizar dados agora"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-5L3 9m0-5v5h5m-4 4a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/></svg></button>
+                        <button class="btn-secundario" onclick="alternarTelas('operacao')">← Voltar</button>
+                    </div>
+                </div>
 
-                    <div id="admin-box-permissoes" class="oculto" style="margin-top: 12px; background: var(--input-bg); padding: 14px; border-radius: 12px; border: var(--vidro-borda);">
+                <label for="select-inspecionar-colab" style="color: var(--cor-texto); font-weight: 700; font-size: 14px; display: block; margin-bottom: 6px;">Selecione o Funcionário</label>
+                <select id="select-inspecionar-colab" onchange="window.selecionarFuncionarioAdmin(this.value)" style="margin-bottom: 12px;">
+                    <option value="">Selecione um funcionário...</option>
+                </select>
+
+                <div id="resultado-inspecao-colab" class="oculto">
+                    <details class="funcionario-secao" data-suiri-admin>
+                        <summary>Cargos, permissões e setor</summary>
+                <!-- GESTÃO DE CARGOS: ADMIN, SÓCIO E GERENTE -->
+                <div class="funcionario-secao">
+                    <div id="admin-box-permissoes" class="oculto">
                         <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
                                 <input type="checkbox" id="check-is-admin"> <strong>Administrador</strong>
@@ -547,7 +569,7 @@
 
                         <!-- MATRIZ DE PERMISSÕES MODULARES EM CARDS MODERNOS COM ALINHAMENTO PERFEITO -->
                         <div id="admin-permissoes-socio-lista" class="oculto" style="border-top: var(--vidro-borda); padding-top: 12px;">
-                            
+
                             <!-- GRUPO 1: OPERAÇÃO & EQUIPA -->
                             <div class="grupo-permissoes-titulo">📋 Operação & Chão de Loja</div>
                             <div class="grade-cards-permissoes">
@@ -643,31 +665,162 @@
 
                         <div style="display: flex; gap: 8px; margin-top: 16px;">
                             <button class="btn-erro" onclick="window.revogarTodosCargosModal()" style="flex: 1; margin-top: 0; padding: 10px; font-size: 12px;">Revogar Cargos</button>
-                            <button class="btn-admin-roxo" onclick="window.salvarConfiguracaoCargo()" style="flex: 1.5; margin-top: 0;">Salvar Alterações</button>
+                            <button class="btn-admin-roxo" onclick="window.salvarConfiguracaoCargo()" style="flex: 1.5; margin-top: 0;">Salvar cargos e permissões</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- TRANSFERIR DE SETOR -->
-                <div class="form-insercao">
-                    <label style="color: var(--cor-admin); font-weight: 700;">Transferência Rápida de Setor</label>
+                <div class="funcionario-secao" id="funcionario-setor">
+                    <label for="admin-select-novo-setor" style="color: var(--cor-admin); font-weight: 700;">Setor do funcionário</label>
                     <div class="flex-linha-mobile">
-                        <select id="admin-select-func-setor" style="flex: 2;"><option value="">Colaborador</option></select>
+
                         <select id="admin-select-novo-setor" style="flex: 1.5;">
                             <option value="frente">Frente (Salão)</option>
                             <option value="copa">Copa</option>
                             <option value="cozinha">Cozinha</option>
                             <option value="logistica">Logística</option>
                         </select>
-                        <button class="btn-principal" onclick="window.transferirSetorColaborador()" style="flex: 1; margin-top: 0;">Mudar</button>
+                        <button class="btn-principal" onclick="window.transferirSetorColaborador()" style="flex: 1; margin-top: 0;">Salvar setor</button>
                     </div>
                 </div>
 
-                <!-- BOTÃO PARA GERIR CARDÁPIO DE CONSUMO INTERNO -->
-                <div style="margin-top: 16px; border-top: var(--vidro-borda); padding-top: 14px;">
-                    <button class="btn-secundario" onclick="window.abrirModalGerenciarCardapio()" style="width: 100%; padding: 10px; font-size: 12px; font-weight: 700; color: var(--cor-primaria);">📋 Gerenciar Itens do Cardápio de Consumo</button>
+                    </details>
+                    <div id="inspecao-dados-financeiros" style="font-size: 12px; margin-bottom: 12px;"></div>
+
+                    <!-- CONSUMO & VALES DESDE O ÚLTIMO FECHAMENTO -->
+                    <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 12px;">
+                        <span style="font-size: 12px; font-weight: 800; color: var(--cor-primaria); display: block; margin-bottom: 6px;">🧾 Consumo & Vales (Desde o Último Fechamento)</span>
+                        <div id="inspecao-lista-consumo-fechamento" style="display: flex; flex-direction: column; gap: 6px;">
+                            <p class="status-texto" style="font-size: 11px; text-align: center;">Nenhum consumo ou vale em aberto registrado para este colaborador.</p>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--cor-primaria);">3 Últimas Ações Realizadas:</span>
+                        <ul id="inspecao-ultimas-acoes" class="inspecao-acoes-lista"></ul>
+                    </div>
+
+                    <!-- MODIFICAR NOME / APELIDO & WHATSAPP -->
+                    <div id="bloco-modificar-nome-inspecao" class="oculto" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
+                        <label style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">✏️ Alterar Nome / Apelido & WhatsApp</label>
+                        <div class="flex-linha-mobile" style="margin-bottom: 6px;">
+                            <input type="text" id="input-novo-nome-inspecao" placeholder="Novo nome..." style="font-size: 11px; padding: 6px; flex: 1.5;">
+                            <input type="tel" id="input-novo-whatsapp-inspecao" placeholder="WhatsApp (DDD)..." style="font-size: 11px; padding: 6px; flex: 1.5;">
+                            <button class="btn-admin-roxo" onclick="window.salvarNovoNomeEWhatsappInspecao()" style="font-size: 11px; padding: 6px 10px; margin-top: 0; flex: 1;">Salvar</button>
+                        </div>
+                    </div>
+
+                    <!-- CONTRATO, ADMISSÃO, FOLGAS & REMUNERAÇÃO -->
+                    <div id="bloco-contrato-salario-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">📋 Contrato & Remuneração</span>
+
+                        <div class="flex-linha-mobile" style="margin-bottom: 6px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Tipo de Contrato</label>
+                                <select id="select-inspecao-tipo-contrato" style="font-size: 11px; padding: 5px; width: 100%;" onchange="window.alternarCamposContratoInspecao(this.value)">
+                                    <option value="fixo">Fixo (Mensalista)</option>
+                                    <option value="freelance">Freelancer (Diarista)</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Data de Admissão</label>
+                                <input type="date" id="input-inspecao-data-admissao" style="font-size: 11px; padding: 5px; width: 100%;">
+                            </div>
+                        </div>
+
+                        <div id="box-campo-salario-fixo" style="margin-bottom: 8px;">
+                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Salário Base Mensal (R$)</label>
+                            <input type="number" step="0.01" id="input-inspecao-salario-base" placeholder="R$ 0,00" style="font-size: 11px; padding: 5px; width: 100%;">
+                        </div>
+
+                        <!-- FOLGAS DA SEMANA -->
+                        <div id="box-dias-folga-semana" style="margin-bottom: 10px;">
+                            <label style="font-size: 10px; color: var(--texto-suave); display: block; margin-bottom: 4px;">Dias de Folga Semanal (Fixo):</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px;">
+                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="0"> Dom</label>
+                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="1"> Seg</label>
+                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="2"> Ter</label>
+                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="3"> Qua</label>
+                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="4"> Qui</label>
+                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="5"> Sex</label>
+                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="6"> Sáb</label>
+                            </div>
+                        </div>
+
+                        <div id="box-campo-valor-diaria" class="oculto" style="margin-bottom: 8px;">
+                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Valor por Dia Trabalhado / Diária (R$)</label>
+                            <input type="number" step="0.01" id="input-inspecao-valor-diaria" placeholder="R$ 0,00" style="font-size: 11px; padding: 5px; width: 100%;">
+                        </div>
+
+                        <button class="btn-admin-roxo" onclick="window.salvarDadosContratoInspecao()" style="font-size: 11px; padding: 6px; width: 100%; margin-top: 0;">Salvar Dados Contratuais</button>
+                    </div>
+
+                    <!-- GESTÃO DE FALTA / FOLGA / ATESTADO -->
+                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
+                        <span style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 6px;">📅 Registo de Assiduidade (A partir de Hoje)</span>
+                        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                            <select id="select-status-presenca-inspecao" style="font-size: 11px; padding: 6px;" onchange="window.alternarCamposPresencaInspecao(this.value)">
+                                <option value="folga">Folga</option>
+                                <option value="falta">Falta Injustificada</option>
+                                <option value="atestado">Atestado</option>
+                            </select>
+                            <button class="btn-admin-roxo" onclick="window.lancarGestaoPresencaInspecao()" style="font-size: 11px; padding: 6px; margin-top: 0; width: auto;">Lançar</button>
+                        </div>
+                        <div id="bloco-dias-folga-inspecao" style="margin-top: 6px;">
+                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Quantidade de dias de folga consecutivos:</label>
+                            <input type="number" id="input-dias-folga-inspecao" min="1" value="1" placeholder="Dias de folga" style="font-size: 11px; padding: 6px; width: 100%; margin-bottom: 4px;">
+                        </div>
+                        <div id="bloco-dias-atestado-inspecao" style="display: none; margin-top: 6px;">
+                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Dias de licença / atestado:</label>
+                            <input type="number" id="input-dias-atestado-inspecao" min="1" value="1" placeholder="Dias de atestado" style="font-size: 11px; padding: 6px; width: 100%; margin-bottom: 4px;">
+                        </div>
+                        <button class="btn-secundario" onclick="window.retornoAntecipadoAtestadoInspecao()" style="font-size: 10px; padding: 4px 8px; width: 100%; margin-top: 4px; border-color: var(--cor-erro); color: var(--cor-erro);">Retorno Antecipado / Limpar Folgas e Atestados</button>
+                    </div>
+
+                    <!-- AJUSTAR PONTO -->
+                    <div id="bloco-ajuste-ponto-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">🛠️ Ajustar / Corrigir Ponto</span>
+
+                        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Data do Registro</label>
+                                <input type="date" id="input-ajuste-ponto-data" style="font-size: 11px; padding: 5px; width: 100%;" onchange="window.carregarPontoDataInspecao(this.value)">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Status Turno</label>
+                                <select id="select-ajuste-ponto-status" style="font-size: 11px; padding: 5px; width: 100%;">
+                                    <option value="presente">Presente</option>
+                                    <option value="folga">Folga</option>
+                                    <option value="falta">Falta</option>
+                                    <option value="atestado">Atestado</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Entrada (HH:MM)</label>
+                                <input type="time" id="input-ajuste-ponto-entrada" style="font-size: 11px; padding: 5px; width: 100%;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Saída (HH:MM)</label>
+                                <input type="time" id="input-ajuste-ponto-saida" style="font-size: 11px; padding: 5px; width: 100%;">
+                            </div>
+                        </div>
+
+                        <button class="btn-admin-roxo" onclick="window.salvarAjustePontoInspecao()" style="font-size: 11px; padding: 8px; width: 100%; margin-top: 0;">Salvar Ajuste de Ponto</button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;">
+                        <button class="btn-secundario" onclick="window.resetarSenhaColaboradorModal()" style="font-size: 11px; padding: 6px;">🔑 Recuperar acesso</button>
+                        <button class="btn-secundario" onclick="window.removerFotoColaboradorModal()" style="font-size: 11px; padding: 6px;">🖼️ Remover Foto</button>
+                    </div>
+                    <div id="inspecao-botoes-quitar" style="margin-top: 8px;"></div>
+                    <button class="btn-erro" onclick="window.excluirColaboradorModal(document.getElementById('select-inspecionar-colab').value)" style="padding: 8px; font-size: 11px; margin-top: 8px;">🗑️ Excluir Funcionário</button>
                 </div>
             </section>
+
         </main>
 
         <!-- PÁGINA OPERACIONAL PRINCIPAL -->
@@ -931,165 +1084,11 @@
         <!-- PÁGINA: CENTRAL DE RELATÓRIOS REFINADA -->
         <main id="conteudo-relatorios" class="oculto">
             
-            <!-- BLOCO EM DESTAQUE: INSPEÇÃO DE EQUIPE & DESEMPENHO -->
-            <section class="cartao-geral cartao-admin bloco-inspecao-topo-relatorios" id="bloco-inspecao-equipe-relatorios">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div>
-                        <h3 style="margin-bottom: 2px; color: var(--cor-socio);">🔍 Inspecionar Equipe & Desempenho</h3>
-                        <p style="font-size: 11px; color: var(--texto-suave);">Dossiê do colaborador, contratos, fechamento e ajustes</p>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <button class="btn-atualizar-topo" onclick="window.atualizarDadosGeral()" title="Atualizar dados agora">🔄</button>
-                        <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="relatorios" onclick="window.alternarTravamentoHome('relatorios')" title="Definir Relatórios como Página Inicial">🔓</button>
-                        <button class="btn-secundario" onclick="alternarTelas('operacao')">← Voltar</button>
-                    </div>
-                </div>
-
-                <label style="color: var(--cor-texto); font-weight: 700; font-size: 12px; display: block; margin-bottom: 6px;">Selecione o Funcionário</label>
-                <select id="select-inspecionar-colab" onchange="window.inspecionarColaborador(this.value)" style="margin-bottom: 12px;">
-                    <option value="">Selecione um funcionário...</option>
-                </select>
-
-                <div id="resultado-inspecao-colab" class="oculto" style="margin-top: 8px; background: var(--vidro-bg); padding: 14px; border-radius: 12px; border: var(--vidro-borda);">
-                    <div id="inspecao-dados-financeiros" style="font-size: 12px; margin-bottom: 12px;"></div>
-
-                    <!-- CONSUMO & VALES DESDE O ÚLTIMO FECHAMENTO -->
-                    <div style="background: var(--input-bg); padding: 12px; border-radius: 10px; border: var(--vidro-borda); margin-bottom: 12px;">
-                        <span style="font-size: 12px; font-weight: 800; color: var(--cor-primaria); display: block; margin-bottom: 6px;">🧾 Consumo & Vales (Desde o Último Fechamento)</span>
-                        <div id="inspecao-lista-consumo-fechamento" style="display: flex; flex-direction: column; gap: 6px;">
-                            <p class="status-texto" style="font-size: 11px; text-align: center;">Nenhum consumo ou vale em aberto registrado para este colaborador.</p>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--cor-primaria);">3 Últimas Ações Realizadas:</span>
-                        <ul id="inspecao-ultimas-acoes" class="inspecao-acoes-lista"></ul>
-                    </div>
-
-                    <!-- MODIFICAR NOME / APELIDO & WHATSAPP -->
-                    <div id="bloco-modificar-nome-inspecao" class="oculto" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
-                        <label style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">✏️ Alterar Nome / Apelido & WhatsApp</label>
-                        <div class="flex-linha-mobile" style="margin-bottom: 6px;">
-                            <input type="text" id="input-novo-nome-inspecao" placeholder="Novo nome..." style="font-size: 11px; padding: 6px; flex: 1.5;">
-                            <input type="tel" id="input-novo-whatsapp-inspecao" placeholder="WhatsApp (DDD)..." style="font-size: 11px; padding: 6px; flex: 1.5;">
-                            <button class="btn-admin-roxo" onclick="window.salvarNovoNomeEWhatsappInspecao()" style="font-size: 11px; padding: 6px 10px; margin-top: 0; flex: 1;">Salvar</button>
-                        </div>
-                    </div>
-
-                    <!-- CONTRATO, ADMISSÃO, FOLGAS & REMUNERAÇÃO -->
-                    <div id="bloco-contrato-salario-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">📋 Contrato & Remuneração</span>
-                        
-                        <div class="flex-linha-mobile" style="margin-bottom: 6px;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Tipo de Contrato</label>
-                                <select id="select-inspecao-tipo-contrato" style="font-size: 11px; padding: 5px; width: 100%;" onchange="window.alternarCamposContratoInspecao(this.value)">
-                                    <option value="fixo">Fixo (Mensalista)</option>
-                                    <option value="freelance">Freelancer (Diarista)</option>
-                                </select>
-                            </div>
-                            <div style="flex: 1;">
-                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Data de Admissão</label>
-                                <input type="date" id="input-inspecao-data-admissao" style="font-size: 11px; padding: 5px; width: 100%;">
-                            </div>
-                        </div>
-
-                        <div id="box-campo-salario-fixo" style="margin-bottom: 8px;">
-                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Salário Base Mensal (R$)</label>
-                            <input type="number" step="0.01" id="input-inspecao-salario-base" placeholder="R$ 0,00" style="font-size: 11px; padding: 5px; width: 100%;">
-                        </div>
-
-                        <!-- FOLGAS DA SEMANA -->
-                        <div id="box-dias-folga-semana" style="margin-bottom: 10px;">
-                            <label style="font-size: 10px; color: var(--texto-suave); display: block; margin-bottom: 4px;">Dias de Folga Semanal (Fixo):</label>
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px;">
-                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="0"> Dom</label>
-                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="1"> Seg</label>
-                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="2"> Ter</label>
-                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="3"> Qua</label>
-                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="4"> Qui</label>
-                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="5"> Sex</label>
-                                <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;"><input type="checkbox" class="chk-folga-semana" value="6"> Sáb</label>
-                            </div>
-                        </div>
-
-                        <div id="box-campo-valor-diaria" class="oculto" style="margin-bottom: 8px;">
-                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Valor por Dia Trabalhado / Diária (R$)</label>
-                            <input type="number" step="0.01" id="input-inspecao-valor-diaria" placeholder="R$ 0,00" style="font-size: 11px; padding: 5px; width: 100%;">
-                        </div>
-
-                        <button class="btn-admin-roxo" onclick="window.salvarDadosContratoInspecao()" style="font-size: 11px; padding: 6px; width: 100%; margin-top: 0;">Salvar Dados Contratuais</button>
-                    </div>
-
-                    <!-- GESTÃO DE FALTA / FOLGA / ATESTADO -->
-                    <div style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
-                        <span style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 6px;">📅 Registo de Assiduidade (A partir de Hoje)</span>
-                        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                            <select id="select-status-presenca-inspecao" style="font-size: 11px; padding: 6px;" onchange="window.alternarCamposPresencaInspecao(this.value)">
-                                <option value="folga">Folga</option>
-                                <option value="falta">Falta Injustificada</option>
-                                <option value="atestado">Atestado</option>
-                            </select>
-                            <button class="btn-admin-roxo" onclick="window.lancarGestaoPresencaInspecao()" style="font-size: 11px; padding: 6px; margin-top: 0; width: auto;">Lançar</button>
-                        </div>
-                        <div id="bloco-dias-folga-inspecao" style="margin-top: 6px;">
-                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Quantidade de dias de folga consecutivos:</label>
-                            <input type="number" id="input-dias-folga-inspecao" min="1" value="1" placeholder="Dias de folga" style="font-size: 11px; padding: 6px; width: 100%; margin-bottom: 4px;">
-                        </div>
-                        <div id="bloco-dias-atestado-inspecao" style="display: none; margin-top: 6px;">
-                            <label style="font-size: 10px; color: var(--texto-suave); display: block;">Dias de licença / atestado:</label>
-                            <input type="number" id="input-dias-atestado-inspecao" min="1" value="1" placeholder="Dias de atestado" style="font-size: 11px; padding: 6px; width: 100%; margin-bottom: 4px;">
-                        </div>
-                        <button class="btn-secundario" onclick="window.retornoAntecipadoAtestadoInspecao()" style="font-size: 10px; padding: 4px 8px; width: 100%; margin-top: 4px; border-color: var(--cor-erro); color: var(--cor-erro);">Retorno Antecipado / Limpar Folgas e Atestados</button>
-                    </div>
-
-                    <!-- AJUSTAR PONTO -->
-                    <div id="bloco-ajuste-ponto-inspecao" style="background: var(--input-bg); padding: 10px; border-radius: 8px; border: var(--vidro-borda); margin-bottom: 10px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--cor-admin); display: block; margin-bottom: 6px;">🛠️ Ajustar / Corrigir Ponto</span>
-                        
-                        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Data do Registro</label>
-                                <input type="date" id="input-ajuste-ponto-data" style="font-size: 11px; padding: 5px; width: 100%;" onchange="window.carregarPontoDataInspecao(this.value)">
-                            </div>
-                            <div style="flex: 1;">
-                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Status Turno</label>
-                                <select id="select-ajuste-ponto-status" style="font-size: 11px; padding: 5px; width: 100%;">
-                                    <option value="presente">Presente</option>
-                                    <option value="folga">Folga</option>
-                                    <option value="falta">Falta</option>
-                                    <option value="atestado">Atestado</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Entrada (HH:MM)</label>
-                                <input type="time" id="input-ajuste-ponto-entrada" style="font-size: 11px; padding: 5px; width: 100%;">
-                            </div>
-                            <div style="flex: 1;">
-                                <label style="font-size: 10px; color: var(--texto-suave); display: block;">Saída (HH:MM)</label>
-                                <input type="time" id="input-ajuste-ponto-saida" style="font-size: 11px; padding: 5px; width: 100%;">
-                            </div>
-                        </div>
-
-                        <button class="btn-admin-roxo" onclick="window.salvarAjustePontoInspecao()" style="font-size: 11px; padding: 8px; width: 100%; margin-top: 0;">Salvar Ajuste de Ponto</button>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;">
-                        <button class="btn-secundario" onclick="window.resetarSenhaColaboradorModal()" style="font-size: 11px; padding: 6px;">🔑 Recuperar acesso</button>
-                        <button class="btn-secundario" onclick="window.removerFotoColaboradorModal()" style="font-size: 11px; padding: 6px;">🖼️ Remover Foto</button>
-                    </div>
-                    <div id="inspecao-botoes-quitar" style="margin-top: 8px;"></div>
-                    <button class="btn-erro" onclick="window.excluirColaboradorModal(document.getElementById('select-inspecionar-colab').value)" style="padding: 8px; font-size: 11px; margin-top: 8px;">🗑️ Excluir Funcionário</button>
-                </div>
-            </section>
-
             <!-- EXTRAÇÃO DE RELATÓRIOS GERAIS (PDF COM NOME INTELIGENTE) -->
             <section class="cartao-geral cartao-admin">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h3 style="margin-bottom: 0;">Extração de Relatórios</h3>
+                    <button class="btn-travar-home destravado oculto btn-admin-only" data-tela="relatorios" onclick="window.alternarTravamentoHome('relatorios')" aria-label="Definir Relatórios como página inicial">🔓</button>
                 </div>
                 
                 <div class="form-insercao" style="background: transparent;">
@@ -1459,6 +1458,10 @@
         </div>
     </div>
 
+    <template id="atalho-aprovacoes"><button type="button" id="btn-consumo-pendencias" class="btn-secundario oculto" aria-label="Aprovações de consumo" title="Aprovações de consumo">
+            Aprovações de consumo
+            <span id="badge-consumo-pendencias" class="oculto"></span>
+        </button></template>
     <div id="modal-consumo-pendencias" class="modal-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="consumo-pendencias-titulo">
         <div class="modal-conteudo">
             <div class="modal-header">
@@ -1472,11 +1475,13 @@
     </div>
 
     <!-- CONEXÃO COM OS ARQUIVOS JAVASCRIPT DIVIDIDOS (ARQUITETURA SUIRI 2.0) -->
-    <script src="app-core.js?v=4.3"></script>
-    <script src="app-operacional.js?v=4"></script>
+    <script src="app-core.js?v=4.3.2"></script>
+    <script src="app-operacional.js?v=4.3.2"></script>
     <script src="app-gestao.js?v=4.3"></script>
     <script src="cardapio-original.js"></script>
-    <script src="app-empresa.js?v=4.3"></script>
+    <script src="app-empresa.js?v=4.3.2"></script>
+    <script src="app-interface.js?v=1"></script>
+    <script src="app-notificacoes.js?v=2"></script>
     <script src="app-consumo.js?v=4.3"></script>
     <script src="visual-suiri.js?v=4.3"></script>
 
