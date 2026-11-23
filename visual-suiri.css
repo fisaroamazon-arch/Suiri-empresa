@@ -302,3 +302,72 @@ html[data-tema="escuro"] .tag-setor {background:var(--accent-soft)!important;col
 .suiri-marca-app:has(.consumo-sino:not(.oculto)) {column-gap:8px;}
 #badge-consumo-pendencias {top:0;right:0;}
 #video-leitor-camera-gestao {object-fit:contain;}
+
+#abertura-suiri {
+    min-height: 85dvh;
+    display: grid;
+    place-items: center;
+    color: var(--cor-texto);
+    font-size: 1rem;
+}
+#abertura-suiri.oculto { display: none; }
+.funcionarios-admin #resultado-inspecao-colab > div,
+.funcionario-secao {
+    margin-block: 12px;
+    padding-block: 12px;
+    border-block-start: 1px solid var(--line);
+}
+.funcionarios-admin #resultado-inspecao-colab > div {
+    background: transparent !important;
+    border-inline: 0 !important;
+    border-bottom: 0 !important;
+    border-radius: 0 !important;
+    padding-inline: 0 !important;
+}
+.funcionario-secao summary {
+    min-height: 48px;
+    padding-block: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.funcionarios-admin :is(button, input:not([type="checkbox"]), select) {
+    min-height: 48px;
+    font-size: .875rem !important;
+}
+.funcionarios-admin label { font-size: .875rem !important; }
+.funcionarios-admin :focus-visible, #suiri-nav button:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+}
+#suiri-nav button {
+    flex: 1 0 64px;
+    font-size: .75rem;
+}
+
+.suiri-trocar-usuario { display:grid; justify-items:center; gap:3px; background:transparent; border:0; color:var(--cor-texto); padding:4px; }
+.suiri-trocar-usuario small { font-size:.7rem; }
+#suiri-foto-usuario, .suiri-quiosque-avatar { display:grid; place-items:center; width:44px; height:44px; border-radius:50%; overflow:hidden; background:var(--surface-subtle); color:var(--cor-texto); }
+#suiri-foto-usuario img, .suiri-quiosque-avatar img { width:100%; height:100%; object-fit:cover; }
+#suiri-quiosque { width:min(92vw,420px); max-height:85dvh; padding:18px; background:var(--vidro-bg); color:var(--cor-texto); border:var(--vidro-borda); border-radius:18px; overflow:auto; }
+#suiri-quiosque::backdrop { background:#1015278c; }
+#suiri-contas-aparelho { display:grid; gap:8px; }
+.suiri-quiosque-conta { display:flex; align-items:center; gap:12px; min-height:48px; text-align:left; }
+.suiri-trocar-usuario:focus-visible { outline:2px solid var(--accent-text); outline-offset:2px; }
+#alertas-lista .suiri-alerta-item span { white-space:pre-wrap; overflow-wrap:anywhere; }
+.suiri-alertas-sino { position:relative; margin-left:auto; margin-right:8px; }
+#alertas-contador { position:absolute; top:-5px; right:-5px; min-width:18px; padding:2px; border-radius:12px; background:#a6374d; color:#fff; font-size:10px; }
+#notificacoes-suiri { width:min(92vw,490px); max-height:min(78dvh,640px); margin:auto; padding:18px; border:var(--vidro-borda); border-radius:20px; background:var(--vidro-bg); color:var(--cor-texto); overflow:auto; }
+#notificacoes-suiri::backdrop { background:#1015278c; }
+.suiri-alertas-acoes { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+#alertas-lista { list-style:none; padding:0; margin:0; }
+#alertas-lista li + li { margin-top:7px; }
+.suiri-alerta-item { display:grid; gap:4px; width:100%; padding:10px; text-align:left; color:var(--cor-texto); background:var(--input-bg); border:var(--vidro-borda); border-radius:10px; font:inherit; }
+.suiri-alerta-item span { font-size:12px; }
+.suiri-alerta-novo { border-left:4px solid var(--cor-primaria); }
+.suiri-alertas-ajustes { margin-top:14px; }
+#alertas-preferencias { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); }
+#alertas-preferencias fieldset { padding:8px; margin:0; border:var(--vidro-borda); border-radius:8px; min-width:0; }
+#alertas-preferencias legend { font-size:13px; font-weight:650; }
+#alertas-preferencias label { display:inline-flex; gap:5px; align-items:center; padding:5px; font-size:12px; }
+#alertas-preferencias input { width:auto; margin:0; }

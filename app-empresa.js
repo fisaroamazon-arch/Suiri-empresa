@@ -144,7 +144,7 @@ window.processarFilaOffline = async function() {
 
 const suiriTelas = [
     ['operacao','conteudo-operacional','☀','Missão'],
-    ['painel','conteudo-painel-ao-vivo','♙','Equipe'],
+    ['painel','conteudo-painel-ao-vivo','♙','Ao vivo'],
     ['gestao','conteudo-gestao-compras-contas','▦','Gestão'],
     ['relatorios','conteudo-relatorios','▥','Relatórios'],
     ['admin','conteudo-admin','⚙','Admin'],
@@ -154,7 +154,7 @@ const suiriTelas = [
 let suiriTelaAtual = 'operacao';
 function suiriTelasPermitidas() {
     return suiriTelas.filter(([id]) => ['operacao','perfil','configuracoes'].includes(id) ||
-        (id === 'admin' ? !!perfilAtual?.is_admin : id === 'painel' ? window.podeSuiri('inspecao') :
+        (id === 'admin' ? window.podeSuiri('relatorios') : id === 'painel' ? window.podeSuiri('inspecao') :
         id === 'relatorios' ? window.podeSuiri('relatorios') : ['gestao','compras','contas','financeiro','fechar_caixa'].some(window.podeSuiri)));
 }
 const suiriAbrirPerfilAntigo = window.abrirPainelPerfil;
@@ -233,7 +233,7 @@ window.iniciarAppSeguro = async function() {
 // Existing dangerous actions now have server-checked counterparts and clear entry points.
 window.excluirColaboradorModal = async function(id) {
     if (!perfilAtual?.is_admin) return suiriErro(new Error('Apenas administradores podem excluir membros.'));
-    if(id === undefined) id = suiriEl(suiriTelaAtual === 'admin' ? 'admin-select-colab' : 'select-inspecionar-colab')?.value;
+    if(id === undefined) id = suiriEl('select-inspecionar-colab')?.value;
     if (!id) return suiriErro(new Error('Selecione o membro a excluir.'));
     if (String(id) === String(usuarioAtual.id)) return suiriErro(new Error('Para excluir seu próprio acesso, use Ajustes.'));
     const nome = mapaPerfis[id]?.nome || 'este membro';
@@ -536,7 +536,6 @@ function suiriMontarUI() {
     atalhos.before(Object.assign(document.createElement('h2'),{textContent:'Gestão',className:'suiri-gestao-titulo'}));
     atalhos.after(suiriEl('comercial-suiri'));
     suiriEl('input-conta-fornecedor-gestao').setAttribute('list','sugestoes-fornecedores');
-    suiriEl('admin-box-permissoes').insertAdjacentHTML('beforeend','<button type="button" class="btn-erro" data-suiri-admin onclick="window.excluirColaboradorModal(document.getElementById(\'admin-select-colab\').value)">Excluir este membro</button>');
     suiriEl('modal-gerenciar-cardapio').querySelector('.modal-conteudo').insertAdjacentHTML('beforeend',`<details class="suiri-importar"><summary>Importar cardápio por texto ou arquivo</summary><p>Uma linha por produto: <b>Suco de uva; 12,50</b>. Você revisa antes de salvar. Máximo: 500 itens por envio.</p><label>Arquivo de texto (.txt ou .csv)<input type="file" id="cardapio-arquivo" accept=".txt,.csv,text/plain,text/csv"></label><label>Texto do cardápio<textarea id="cardapio-texto" rows="6" placeholder="Suco de uva; 12,50&#10;Água mineral; 5,00"></textarea></label><button type="button" class="btn-secundario" data-suiri-acao="preview-cardapio">Revisar texto</button><button type="button" class="btn-secundario" data-suiri-acao="cardapio-original">Carregar cardápio original do Sabor da Costa</button><p id="cardapio-preview" aria-live="polite"></p><label><input id="cardapio-atualizar" type="checkbox"> Atualizar preço dos itens já cadastrados</label><button type="button" class="btn-principal" data-suiri-acao="importar-cardapio" id="btn-importar-cardapio" disabled>Importar itens revisados</button></details>`);
     suiriEl('form-venda-suiri').addEventListener('submit',e=>{e.preventDefault();suiriExecutar(e.submitter,async()=>{
         const itens=suiriObterItens();if(!itens.length)throw new Error('Adicione pelo menos um item.');
