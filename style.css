@@ -747,9 +747,15 @@ button { font-family: 'Inter', sans-serif; outline: none; }
     gap: 8px;
     cursor: pointer;
     flex: 1;
+    min-width: 0;
     user-select: none;
 }
+.subtarefa-item label > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
 .subtarefa-item input[type="checkbox"] {
+    flex: none;
     width: 16px;
     height: 16px;
     cursor: pointer;
