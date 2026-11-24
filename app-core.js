@@ -280,17 +280,6 @@ window.toggleFormAviso = function() {
     btn.classList.toggle('btn-toggle-aberto', aberto);
 };
 
-window.toggleFormFinanceiro = function() {
-    window.somPop();
-    const corpo = document.getElementById('corpo-financeiro');
-    const btn = document.getElementById('btn-toggle-financeiro');
-    if (!corpo || !btn) return;
-    corpo.classList.toggle('oculto');
-    const aberto = !corpo.classList.contains('oculto');
-    btn.textContent = aberto ? 'Recolher' : 'Incluir';
-    btn.classList.toggle('btn-toggle-aberto', aberto);
-};
-
 window.toggleSanfonaPerfil = function(idCorpo, btnEl) {
     window.somPop();
     const corpo = document.getElementById(idCorpo);
@@ -325,43 +314,91 @@ window.ehSocioOuAdmin = function(id) {
 };
 
 window.ajustarTextoValePorSocio = function(funcId) {
-    const label = document.getElementById('label-lancar-vale');
     const btn = document.getElementById('btn-submit-vale');
-    if (funcId && window.ehSocioOuAdmin(funcId)) {
-        if (label) label.textContent = 'Lançar Adiantamento de Pró-Labore';
-        if (btn) btn.textContent = 'Registrar Adiantamento de Pró-Labore';
-    } else {
-        if (label) label.textContent = 'Lançar Vale a Colaborador';
-        if (btn) btn.textContent = 'Registrar Vale';
+    if (btn) btn.textContent = window.ehSocioOuAdmin(funcId)
+        ? 'Registrar adiantamento de pró-labore'
+        : 'Registrar vale';
+};
+
+window.abrirLancamentoValeColaborador = function(funcId) {
+    if (!window.podeSuiri?.('financeiro')) return;
+    window.alternarTelas('gestao', 'vales');
+    const selecao = document.getElementById('select-func-vale');
+    if (!selecao) return;
+    if (funcId) {
+        selecao.value = funcId;
+        window.ajustarTextoValePorSocio(selecao.value);
     }
+    document.getElementById(selecao.value ? 'input-valor-vale' : 'select-func-vale')?.focus();
 };
 
 window.lancarVale = async function() {
-    const funcId = document.getElementById('select-func-vale')?.value;
-    const valor = parseFloat(document.getElementById('input-valor-vale')?.value);
-    const dataVale = document.getElementById('input-data-vale')?.value || window.dataLocal();
-    const obs = document.getElementById('input-obs-vale')?.value.trim();
+    if (!usuarioAtual || !empresaAtualId || !window.podeSuiri?.('financeiro')) {
+        return window.mostrarToast('Sua conta não tem permissão para registrar vales.', 'erro');
+    }
+    const status = document.getElementById('vale-status');
+    const form = document.getElementById('form-lancar-vale');
+    const btn = document.getElementById('btn-submit-vale');
+    const funcId = document.getElementById('select-func-vale').value;
+    const campoValor = document.getElementById('input-valor-vale');
+    const campoData = document.getElementById('input-data-vale');
+    if (btn.disabled) return;
+    status.textContent = '';
 
-    if(!funcId || isNaN(valor) || valor <= 0) return window.mostrarToast("Selecione o funcionário e um valor válido.", "erro");
+    if (!Object.hasOwn(mapaPerfis, funcId)) {
+        status.textContent = 'Selecione um funcionário da empresa.';
+        document.getElementById('select-func-vale').focus();
+        return;
+    }
 
+    let centavos;
+    try {
+        centavos = window.centavosSuiri(campoValor.value);
+        if (centavos <= 0) throw new Error('Informe um valor maior que zero.');
+    } catch (error) {
+        status.textContent = error.message;
+        campoValor.focus();
+        return;
+    }
+
+    const dataVale = campoData.value || window.dataLocal();
+    const obs = document.getElementById('input-obs-vale').value.trim();
+    const empresa = empresaAtualId;
+    const autor = usuarioAtual.id;
+    const nome = mapaPerfis[funcId].nome || 'funcionário selecionado';
     const payload = {
-        perfil_id: funcId, empresa_id: empresaAtualId, valor: valor, data_vale: dataVale, observacao: obs || null, criado_por: usuarioAtual.id, pago: false
+        perfil_id: funcId, empresa_id: empresa, valor: centavos / 100,
+        data_vale: dataVale, observacao: obs || null, criado_por: autor, pago: false
     };
 
-    const res = await window.executarOuOffline('vale_insert', payload, () => cliente.from('vales').insert([payload]));
-
-    if (res && res.error) {
-        window.mostrarToast("Erro ao registrar: " + res.error.message, "erro");
-    } else {
-        window.mostrarToast(res.offline ? "Vale salvo offline!" : "Registrado com sucesso!");
-        document.getElementById('input-valor-vale').value = '';
-        document.getElementById('input-obs-vale').value = '';
-        document.getElementById('select-func-vale').value = '';
-        if (typeof window.renderizarPainelPerfilCompleto === 'function') window.renderizarPainelPerfilCompleto();
-        const selInspecao = document.getElementById('select-inspecionar-colab');
-        if (selInspecao && selInspecao.value === funcId) {
-            window.inspecionarColaborador(funcId);
+    btn.disabled = true;
+    form.setAttribute('aria-busy', 'true');
+    try {
+        const res = await window.executarOuOffline('vale_insert', payload, () => cliente.from('vales').insert([payload]));
+        if (usuarioAtual?.id !== autor || empresaAtualId !== empresa) return;
+        if (res?.error) {
+            status.textContent = 'Não foi possível registrar o vale: ' + res.error.message;
+            return;
         }
+
+        status.textContent = res?.offline
+            ? 'Vale salvo neste aparelho. Será lançado na conta quando sincronizar.'
+            : 'Vale registrado na conta de ' + nome + '.';
+        form.reset();
+        campoData.value = window.dataLocal();
+        window.ajustarTextoValePorSocio('');
+
+        if (res?.offline) return;
+        if (funcId === autor) window.renderizarPainelPerfilCompleto?.();
+        const selInspecao = document.getElementById('select-inspecionar-colab');
+        if (selInspecao?.value === funcId) window.inspecionarColaborador(funcId);
+    } catch (error) {
+        if (usuarioAtual?.id === autor && empresaAtualId === empresa) {
+            status.textContent = 'Não foi possível registrar o vale: ' + error.message;
+        }
+    } finally {
+        btn.disabled = false;
+        form.removeAttribute('aria-busy');
     }
 };
 
@@ -687,13 +724,6 @@ window.alternarTelas = function(tela) {
         btnPerfil?.classList.remove('oculto');
         btnAutonoma?.classList.add('oculto');
 
-        const selInspecao = document.getElementById('select-inspecionar-colab');
-        if (selInspecao && selInspecao.options.length <= 1) {
-            selInspecao.innerHTML = '<option value="">Selecione um funcionário...</option>';
-            Object.values(mapaPerfis).forEach(p => {
-                selInspecao.innerHTML += `<option value="${p.id}">${esc(p.nome)}</option>`;
-            });
-        }
     } else if (tela === 'admin') {
         cabecalho?.classList.add('oculto');
         admin?.classList.remove('oculto');
@@ -751,7 +781,7 @@ window.solicitarRedefinicaoSenhaEmail = async function() {
     const email = document.getElementById('input-email-recuperacao')?.value.toLowerCase().trim();
     if (!email) return window.mostrarToast("Introduza o seu e-mail cadastrado.", "erro");
 
-    const { error } = await cliente.auth.resetPasswordForEmail(email,{redirectTo:location.href.split('#')[0].split('?')[0]});
+    const { error } = await cliente.auth.resetPasswordForEmail(email,{redirectTo:window.suiriAndroid?.site || location.href.split('#')[0].split('?')[0]});
     if (error) {
         window.mostrarToast("Erro ao enviar: " + error.message, "erro");
     } else {
@@ -777,12 +807,10 @@ window.salvarMeuWhatsApp = async function() {
 
 // ------------------ GESTÃO ADMINISTRATIVA E CARGAS DE PERMISSÕES ------------------
 window.prepararTelaAdministracao = function() {
-    const selColab = document.getElementById('admin-select-colab');
-    const selSetorFunc = document.getElementById('admin-select-func-setor');
-    if (!selColab || !selSetorFunc) return;
-
-    selColab.innerHTML = '<option value="">Selecione o colaborador...</option>';
-    selSetorFunc.innerHTML = '<option value="">Colaborador</option>';
+    const selColab = document.getElementById('select-inspecionar-colab');
+    if (!selColab) return;
+    const anterior = selColab.value;
+    selColab.innerHTML = '<option value="">Selecione o funcionário...</option>';
 
     Object.values(mapaPerfis).forEach(p => {
         let papel = 'Funcionário';
@@ -792,10 +820,20 @@ window.prepararTelaAdministracao = function() {
 
         const permCaixaStr = p.pode_fechar_caixa ? ' • 💵 Caixa' : '';
         selColab.innerHTML += `<option value="${p.id}">${esc(p.nome)} (${papel} - ${esc(p.setor || 'Sem setor')}${permCaixaStr})</option>`;
-        selSetorFunc.innerHTML += `<option value="${p.id}">${esc(p.nome)}</option>`;
+
     });
 
-    document.getElementById('admin-box-permissoes')?.classList.add('oculto');
+    selColab.value = mapaPerfis[anterior] ? anterior : '';
+    window.selecionarFuncionarioAdmin(selColab.value);
+};
+
+window.selecionarFuncionarioAdmin = function(id) {
+    if (perfilAtual?.is_admin) {
+        window.carregarDetalhesCargos(id);
+        const setor = document.getElementById('admin-select-novo-setor');
+        if (setor) setor.value = mapaPerfis[id]?.setor || '';
+    }
+    return window.inspecionarColaborador(id);
 };
 
 window.carregarDetalhesCargos = function(id) {
@@ -853,7 +891,7 @@ window.toggleBoxPermissoes = function(ativo) {
 };
 
 window.salvarConfiguracaoCargo = async function() {
-    const selColab = document.getElementById('admin-select-colab');
+    const selColab = document.getElementById('select-inspecionar-colab');
     const id = selColab?.value;
     if (!id) return window.mostrarToast("Selecione um funcionário.", "erro");
 
@@ -894,7 +932,7 @@ window.salvarConfiguracaoCargo = async function() {
 };
 
 window.revogarTodosCargosModal = async function() {
-    const selColab = document.getElementById('admin-select-colab');
+    const selColab = document.getElementById('select-inspecionar-colab');
     const id = selColab?.value;
     if (!id) return window.mostrarToast("Selecione um funcionário.", "erro");
 
@@ -925,7 +963,7 @@ window.revogarTodosCargosModal = async function() {
 };
 
 window.transferirSetorColaborador = async function() {
-    const id = document.getElementById('admin-select-func-setor')?.value;
+    const id = document.getElementById('select-inspecionar-colab')?.value;
     const novoSetor = document.getElementById('admin-select-novo-setor')?.value;
 
     if (!id || !novoSetor) return window.mostrarToast("Selecione o colaborador e o novo setor.", "erro");
@@ -967,7 +1005,11 @@ window.alternarCamposPresencaInspecao = function(status) {
     if (boxAtestado) boxAtestado.style.display = (status === 'atestado') ? 'block' : 'none';
 };
 
+let consultaFuncionarioAdmin = 0;
 window.inspecionarColaborador = async function(colabId) {
+    const consulta = ++consultaFuncionarioAdmin;
+    const usuario = usuarioAtual?.id;
+    const consultaAtual = () => consulta === consultaFuncionarioAdmin && usuario === usuarioAtual?.id;
     const card = document.getElementById('resultado-inspecao-colab');
     const dadosFinEl = document.getElementById('inspecao-dados-financeiros');
     const ultimasAcoesEl = document.getElementById('inspecao-ultimas-acoes');
@@ -977,7 +1019,8 @@ window.inspecionarColaborador = async function(colabId) {
     const inputNovoWhats = document.getElementById('input-novo-whatsapp-inspecao');
     const listaConsumoFechamento = document.getElementById('inspecao-lista-consumo-fechamento');
     
-    if(!colabId) { if(card) card.classList.add('oculto'); return; }
+    card?.classList.add('oculto');
+    if (!colabId) return;
 
     const colabData = mapaPerfis[colabId] || {};
 
@@ -1033,6 +1076,7 @@ window.inspecionarColaborador = async function(colabId) {
     }
 
     const { data: comprasPendentes } = await queryCompras;
+    if (!consultaAtual()) return;
 
     const totalVales = valesPendentes?.reduce((acc, v) => acc + Number(v.valor), 0) || 0;
     const totalCompras = comprasPendentes?.reduce((acc, c) => acc + Number(c.valor_final), 0) || 0;
@@ -1118,6 +1162,7 @@ window.inspecionarColaborador = async function(colabId) {
             .order('criado_em', { ascending: false })
             .limit(3);
 
+        if (!consultaAtual()) return;
         ultimasAcoesEl.innerHTML = '';
         if (ultimasTarefas && ultimasTarefas.length > 0) {
             ultimasTarefas.forEach(a => {
@@ -1466,7 +1511,8 @@ window.fecharModalCrop = function() {
 
 window.salvarFotoRecortada = async function() {
     const canvas = document.getElementById('crop-canvas');
-    if (!canvas) return;
+    if (!canvas || !usuarioAtual) return;
+    const perfilId = usuarioAtual.id;
 
     const exportarBlob = (formato, qualidade) => {
         return new Promise((resolve) => {
@@ -1484,10 +1530,11 @@ window.salvarFotoRecortada = async function() {
 
     if (!blob) return window.mostrarToast("Falha ao processar a imagem recortada.", "erro");
 
-    const nomeArquivo = `avatar_${usuarioAtual.id}_${Date.now()}.${extensao}`;
+    if (usuarioAtual?.id !== perfilId) return;
+    const nomeArquivo = `avatar_${perfilId}_${Date.now()}.${extensao}`;
 
     const { error: uploadError } = await cliente.storage.from('sistema-imagens').upload(nomeArquivo, blob, { 
-        upsert: true,
+        upsert: false,
         contentType: extensao === 'webp' ? 'image/webp' : 'image/png'
     });
 
@@ -1495,10 +1542,14 @@ window.salvarFotoRecortada = async function() {
         return window.mostrarToast("Erro no upload da foto: " + uploadError.message, "erro");
     }
 
-    const { data: publicData } = cliente.storage.from('sistema-imagens').getPublicUrl(nomeArquivo);
-    const fotoUrl = publicData?.publicUrl;
-
-    await cliente.from('perfis').update({ avatar_url: fotoUrl }).eq('id', usuarioAtual.id);
+    if (usuarioAtual?.id !== perfilId) return;
+    const fotoUrl = 'sistema-imagens:' + nomeArquivo;
+    const {data: perfilSalvo, error: erroPerfil} = await cliente.from('perfis')
+        .update({avatar_url:fotoUrl}).eq('id', perfilId).select('id').maybeSingle();
+    if (usuarioAtual?.id !== perfilId) return;
+    if (erroPerfil || !perfilSalvo) {
+        return window.mostrarToast('A foto foi enviada, mas não foi possível vinculá-la ao perfil. Tente novamente.', 'erro');
+    }
     if (perfilAtual) perfilAtual.avatar_url = fotoUrl;
 
     window.mostrarToast("Foto de perfil salva com sucesso!");
@@ -1507,7 +1558,69 @@ window.salvarFotoRecortada = async function() {
 };
 
 // ------------------ PERFIL DA EMPRESA ------------------
+function lerLocalizacaoEmpresa(entrada) {
+    let coordenadas = entrada.trim();
+    if (coordenadas.startsWith('https://')) {
+        const url = new URL(coordenadas);
+        if (!['google.com', 'www.google.com', 'maps.google.com'].includes(url.hostname)) return null;
+        const query = url.searchParams.get('query') || url.searchParams.get('q');
+        const marcador = url.pathname.match(/!3d(-?[\d.]+)!4d(-?[\d.]+)/);
+        const centro = url.pathname.match(/@(-?[\d.]+),(-?[\d.]+)(?:,|$)/);
+        coordenadas = marcador ? marcador.slice(1).join(',') : query || (centro ? centro.slice(1).join(',') : '');
+    }
+    const valores = coordenadas.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (!valores) return null;
+    const latitude = Number(valores[1]), longitude = Number(valores[2]);
+    return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? {latitude, longitude} : null;
+}
+
+window.suiriObterLocalizacao = async function() {
+    if (!navigator.geolocation || window.isSecureContext === false) {
+        throw new Error('Localização indisponível. Abra o Suíri em HTTPS ou atualize o aplicativo.');
+    }
+    return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(({coords}) => {
+        const {latitude, longitude, accuracy: precisao} = coords;
+        if (!Number.isFinite(latitude) || Math.abs(latitude) > 90
+            || !Number.isFinite(longitude) || Math.abs(longitude) > 180
+            || !Number.isFinite(precisao) || precisao < 0) {
+            reject(new Error('O aparelho não forneceu uma localização válida.'));
+            return;
+        }
+        resolve({latitude, longitude, precisao});
+    }, erro => {
+        const mensagem = erro.code === 1
+            ? 'Autorize o acesso à localização para continuar.'
+            : 'Não foi possível localizar. Ative a localização e tente novamente.';
+        reject(new Error(mensagem));
+    }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}));
+};
+
+let capturaLocalizacaoEmpresa = 0;
+document.getElementById('empresa-usar-localizacao')?.addEventListener('click', async evento => {
+    if (!perfilAtual?.is_admin) return;
+    const botao = evento.currentTarget;
+    const status = document.getElementById('empresa-localizacao-status');
+    const captura = ++capturaLocalizacaoEmpresa;
+    const admin = usuarioAtual?.id, empresa = empresaAtualId;
+    const capturaAtual = () => captura === capturaLocalizacaoEmpresa
+        && admin === usuarioAtual?.id && empresa === empresaAtualId;
+    status.textContent = 'Buscando a localização…';
+    botao.disabled = true;
+    try {
+        const {latitude, longitude, precisao} = await window.suiriObterLocalizacao();
+        if (!capturaAtual()) return;
+        document.getElementById('empresa-localizacao').value =
+            `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        status.textContent = `Precisão estimada de ${Math.ceil(precisao)} m. Confira antes de salvar.`;
+    } catch (erro) {
+        if (capturaAtual()) status.textContent = `${erro.message} Você também pode informar as coordenadas.`;
+    } finally {
+        botao.disabled = false;
+    }
+});
+
 window.abrirModalPerfilEmpresa = function() {
+    if (!perfilAtual?.is_admin) return window.mostrarToast('Apenas administradores podem editar a empresa.', 'erro');
     window.somPop();
     const d = dadosEmpresaAtual || {};
     const inNome = document.getElementById('empresa-input-nome');
@@ -1519,11 +1632,16 @@ window.abrirModalPerfilEmpresa = function() {
     if (inCnpj) inCnpj.value = d.cnpj || '';
     if (inTel) inTel.value = d.telefone || '';
     if (inEnd) inEnd.value = d.endereco || '';
+    document.getElementById('empresa-localizacao').value = d.ponto_latitude == null
+        ? '' : `${d.ponto_latitude}, ${d.ponto_longitude}`;
+    document.getElementById('empresa-ponto-raio').value = d.ponto_raio_m ?? '';
+    document.getElementById('empresa-localizacao-status').textContent = '';
 
     document.getElementById('modal-perfil-empresa')?.classList.remove('oculto');
 };
 
 window.fecharModalPerfilEmpresa = function() {
+    capturaLocalizacaoEmpresa++;
     document.getElementById('modal-perfil-empresa')?.classList.add('oculto');
 };
 
@@ -1537,12 +1655,33 @@ window.salvarDadosEmpresa = async function() {
 
     if (!perfilAtual?.is_admin) return window.mostrarToast('Apenas administradores podem editar a empresa.', 'erro');
     const payload = { nome_fantasia: nome, telefone, endereco };
+    const entrada = document.getElementById('empresa-localizacao').value.trim();
+    const raio = document.getElementById('empresa-ponto-raio').value.trim();
+    if (entrada || raio) {
+        let local;
+        try { local = lerLocalizacaoEmpresa(entrada); } catch { local = null; }
+        if (!local) return window.mostrarToast('Informe as coordenadas ou abra o link do Maps e copie as coordenadas do marcador.', 'erro');
+        if (!/^\d+$/.test(raio) || Number(raio) < 1 || Number(raio) > 2147483647) {
+            return window.mostrarToast('Informe o raio em metros como número inteiro positivo.', 'erro');
+        }
+        Object.assign(payload, {
+            ponto_latitude: local.latitude,
+            ponto_longitude: local.longitude,
+            ponto_raio_m: Number(raio)
+        });
+    } else if (dadosEmpresaAtual?.ponto_latitude != null) {
+        Object.assign(payload, {ponto_latitude: null, ponto_longitude: null, ponto_raio_m: null});
+    }
+
     if (window.normalizarCNPJ(cnpj) !== window.normalizarCNPJ(dadosEmpresaAtual?.cnpj)) return window.mostrarToast('O CNPJ é a identidade da empresa e não pode ser trocado aqui.', 'erro');
 
     let resError = null;
-    if (empresaAtualId) {
-        const { error } = await cliente.from('empresas').update(payload).eq('id', empresaAtualId);
-        resError = error;
+    const empresa = empresaAtualId;
+    const uid = usuarioAtual?.id;
+    if (empresa) {
+        const { data, error } = await cliente.from('empresas').update(payload).eq('id', empresa).select('id').maybeSingle();
+        if (empresaAtualId !== empresa || usuarioAtual?.id !== uid) return;
+        resError = error || (!data && {message: 'Seu acesso não permite alterar esta empresa.'});
     } else {
         resError = {message: 'Empresa não vinculada.'};
     }
@@ -1553,18 +1692,20 @@ window.salvarDadosEmpresa = async function() {
         window.mostrarToast("Dados da empresa salvos com sucesso!");
         dadosEmpresaAtual = { ...(dadosEmpresaAtual || {}), ...payload };
         window.aplicarDadosEmpresaNaTela();
+        window.atualizarIndicacaoLocalizacaoPonto?.();
         window.fecharModalPerfilEmpresa();
     }
 };
 
 window.carregarDadosEmpresa = async function() {
-    let dados = null;
-    if (empresaAtualId) {
-        const { data } = await cliente.from('empresas').select('*').eq('id', empresaAtualId).maybeSingle();
-        dados = data;
-    }
-    dadosEmpresaAtual = dados || { nome_empresa: 'Suiri', nome_fantasia: 'Suiri' };
+    const empresa = empresaAtualId;
+    const uid = usuarioAtual?.id;
+    if (!empresa) return;
+    const { data } = await cliente.from('empresas').select('*').eq('id', empresa).maybeSingle();
+    if (empresaAtualId !== empresa || usuarioAtual?.id !== uid) return;
+    if (data || String(dadosEmpresaAtual?.id) !== String(empresa)) dadosEmpresaAtual = data;
     window.aplicarDadosEmpresaNaTela();
+    window.atualizarIndicacaoLocalizacaoPonto?.();
 };
 
 window.aplicarDadosEmpresaNaTela = function() {
@@ -1636,7 +1777,7 @@ window.renderizarPainelPerfilCompleto = async function() {
     const { data: vales } = await cliente.from('vales').select('valor').eq('perfil_id', usuarioAtual.id).or('pago.is.null,pago.eq.false');
     const totalVales = vales?.reduce((acc, v) => acc + Number(v.valor), 0) || 0;
     const elResumoVales = document.getElementById('perfil-resumo-vales');
-    if (elResumoVales) elResumoVales.textContent = `R$ ${totalVales.toFixed(2)}`;
+    if (elResumoVales) elResumoVales.textContent = totalVales.toLocaleString('pt-BR', {style:'currency',currency:'BRL'});
 
     const { data: compras } = await cliente.from('itens_comprados').select('valor_final').eq('perfil_id', usuarioAtual.id);
     const totalCompras = compras?.reduce((acc, c) => acc + Number(c.valor_final), 0) || 0;
@@ -1692,17 +1833,19 @@ window.renderizarPainelPerfilCompleto = async function() {
 
 window.carregarFinanceiroSeparado = async function() {
     const contFin = document.getElementById('lista-perfil-financeiro');
-    if (!contFin) return;
+    if (!contFin || !usuarioAtual || !empresaAtualId) return;
 
-    const { data: vales } = await cliente.from('vales')
-        .select('*')
-        .eq('perfil_id', usuarioAtual.id)
-        .order('data_vale', { ascending: false });
-
-    const { data: compras } = await cliente.from('itens_comprados')
-        .select('*')
-        .eq('perfil_id', usuarioAtual.id)
-        .order('data_compra', { ascending: false });
+    const usuario = usuarioAtual.id;
+    const empresa = empresaAtualId;
+    const [{ data: vales, error: erroVales }, { data: compras, error: erroCompras }] = await Promise.all([
+        cliente.from('vales').select('*').eq('perfil_id', usuario).order('data_vale', { ascending: false }),
+        cliente.from('itens_comprados').select('*').eq('perfil_id', usuario).order('data_compra', { ascending: false })
+    ]);
+    if (usuarioAtual?.id !== usuario || empresaAtualId !== empresa) return;
+    if (erroVales || erroCompras) {
+        contFin.textContent = 'Não foi possível carregar o extrato. Atualize a página e tente novamente.';
+        return;
+    }
 
     let listaUnificada = [];
 
@@ -1749,11 +1892,11 @@ window.carregarFinanceiroSeparado = async function() {
             <div class="perfil-item-financeiro-linha">
                 <div style="flex:1;">
                     <div>${tag} <strong>${esc(item.descricao)}</strong></div>
-                    <div style="font-size:10px; color:var(--texto-suave);">Data: ${dataFormatada} ${item.pago ? '• <span style="color:var(--cor-sucesso); font-weight:700;">Quitado</span>' : ''}</div>
+                    <div style="font-size:10px; color:var(--texto-suave);">Data: ${dataFormatada} ${ehVale ? (item.pago ? '• <span style="color:var(--cor-sucesso); font-weight:700;">Quitado</span>' : '• Em aberto') : ''}</div>
                 </div>
                 <div style="text-align:right;">
-                    <strong style="color:${corValor}; font-size:12px; display:block; margin-bottom:2px;">R$ ${item.valor.toFixed(2)}</strong>
-                    <button class="btn-editar-consumo" onclick="window.abrirModalEditarItem('${item.id}', ${window.atributoJS(item.descricao)}, ${item.valor}, 0, '${item.tipo}', '${item.data}')">✏️ Editar</button>
+                    <strong style="color:${corValor}; font-size:12px; display:block; margin-bottom:2px;">R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>
+                    ${window.podeSuiri?.('financeiro') ? `<button class="btn-editar-consumo" onclick="window.abrirModalEditarItem('${item.id}', ${window.atributoJS(item.descricao)}, ${item.valor}, 0, '${item.tipo}', '${item.data}')">Editar</button>` : ''}
                 </div>
             </div>
         `;
@@ -1974,7 +2117,7 @@ async function confirmarValidacaoCNPJeCriarConta() {
         if(erroVersao || versaoBanco!==4)throw new Error('Instale primeiro a atualização do banco V4 incluída no ZIP.');
         btn.textContent = 'Criando conta…'; window.cadastroEmAndamento = true;
         const {data, error} = await cliente.auth.signUp({email, password: senha, options: {
-            emailRedirectTo: location.href.split('#')[0].split('?')[0],
+            emailRedirectTo: window.suiriAndroid?.site || location.href.split('#')[0].split('?')[0],
             data: {nome, suiri_cnpj: cnpj, suiri_empresa: {
                 nome_fantasia: nomeEmpresa, razao_social: dados.razao_social || nomeEmpresa,
                 telefone: dados.ddd_telefone_1 || '',
@@ -2055,6 +2198,7 @@ window.iniciarAppSeguro = async function() {
         document.getElementById('vinculo-pendente')?.classList.remove('oculto');
         return;
     }
+    document.getElementById('abertura-suiri')?.classList.add('oculto');
     telaLogin?.classList.add('oculto'); telaApp?.classList.remove('oculto');
 
     await window.carregarDadosEmpresa();
@@ -2080,10 +2224,12 @@ window.iniciarAppSeguro = async function() {
     const tagSetor = document.getElementById('tag-meu-setor');
     if (tagSetor && perfilAtual?.setor) tagSetor.textContent = perfilAtual.setor;
 
+    await window.prepararAvataresSuiri?.([perfilAtual, ...funcs]);
+    const fotoPerfil = window.urlAvatarSuiri ? window.urlAvatarSuiri(perfilAtual?.avatar_url) : perfilAtual?.avatar_url;
     const avatarImg = document.getElementById('avatar-img');
     const avatarPlaceholder = document.getElementById('avatar-placeholder');
-    if (perfilAtual?.avatar_url && avatarImg && avatarPlaceholder) {
-        avatarImg.src = perfilAtual.avatar_url;
+    if (fotoPerfil && avatarImg && avatarPlaceholder) {
+        avatarImg.src = fotoPerfil;
         avatarImg.classList.remove('oculto');
         avatarPlaceholder.classList.add('oculto');
     } else if (avatarPlaceholder && avatarImg) {
@@ -2138,22 +2284,35 @@ window.iniciarAppSeguro = async function() {
         else el.classList.add('oculto');
     });
 
-    const cFin = document.getElementById('cartao-financeiro-gerencial');
-    const podeVerFin = isAdmin || permissoes.includes('financeiro');
-    if (cFin) {
-        if (podeVerFin) cFin.classList.remove('oculto');
-        else cFin.classList.add('oculto');
-
+    const podeVerFin = !!window.podeSuiri?.('financeiro');
+    for (const id of ['atalho-vale-missao', 'atalho-vale-inspecao']) {
+        document.getElementById(id)?.classList.toggle('oculto', !podeVerFin);
+    }
+    const formVale = document.getElementById('form-lancar-vale');
+    if (formVale) {
+        const sessaoVale = empresaAtualId + ':' + usuarioAtual.id;
+        const mesmaSessao = formVale.dataset.sessao === sessaoVale;
+        if (!mesmaSessao || !podeVerFin) {
+            formVale.reset();
+            formVale.dataset.sessao = sessaoVale;
+            document.getElementById('vale-status').textContent = '';
+            document.getElementById('input-data-vale').value = window.dataLocal();
+        }
         const selVale = document.getElementById('select-func-vale');
         const selCompra = document.getElementById('select-func-compra');
-        
-        if (selVale) selVale.innerHTML = '<option value="">Colaborador</option>';
-        if (selCompra) selCompra.innerHTML = '<option value="">Quem comprou?</option>';
-        
-        funcs?.forEach(f => {
-            if (selVale) selVale.innerHTML += `<option value="${f.id}">${esc(f.nome)}</option>`;
-            if (selCompra) selCompra.innerHTML += `<option value="${f.id}">${esc(f.nome)}</option>`;
-        });
+        const selecionados = [selVale, selCompra].map(el => mesmaSessao ? el.value : '');
+        selVale.replaceChildren(new Option('Selecione um funcionário', ''));
+        selCompra.replaceChildren(new Option('Quem comprou?', ''));
+        if (podeVerFin) {
+            for (const f of funcs || []) {
+                selVale.add(new Option(f.nome, f.id));
+                selCompra.add(new Option(f.nome, f.id));
+            }
+            [selVale, selCompra].forEach((el, i) => {
+                if (mapaPerfis[selecionados[i]]) el.value = selecionados[i];
+            });
+        }
+        window.ajustarTextoValePorSocio(selVale.value);
     }
 
     const selFuncTarefa = document.getElementById('select-funcionario');
@@ -2168,11 +2327,8 @@ window.iniciarAppSeguro = async function() {
         funcs?.forEach(f => selFuncRelatorio.innerHTML += `<option value="${f.id}">${esc(f.nome)}</option>`);
     }
 
-    const selInspecaoRelatorios = document.getElementById('select-inspecionar-colab');
-    if (selInspecaoRelatorios) {
-        selInspecaoRelatorios.innerHTML = '<option value="">Selecione um funcionário...</option>';
-        funcs?.forEach(f => selInspecaoRelatorios.innerHTML += `<option value="${f.id}">${esc(f.nome)}</option>`);
-    }
+    document.getElementById('select-inspecionar-colab').value = '';
+    window.prepararTelaAdministracao();
 
     if(typeof window.carregarTarefas === 'function') window.carregarTarefas();
     if(typeof window.carregarAvisos === 'function') window.carregarAvisos();
@@ -2191,7 +2347,7 @@ window.iniciarAppSeguro = async function() {
             window.alternarTelas('gestao');
         } else if (telaGravada === 'relatorios' && podeVerRelatorios) {
             window.alternarTelas('relatorios');
-        } else if (telaGravada === 'admin' && (isAdmin || isSocio)) {
+        } else if (telaGravada === 'admin' && (isAdmin || podeVerRelatorios)) {
             window.alternarTelas('admin');
         } else {
             window.atualizarVisualCadeadosHome('operacao');
@@ -2213,18 +2369,27 @@ window.fazerLogoff = async function() {
 };
 
 window.verificarSessao = async function() {
-    if (!cliente) return;
-    
-    const { data: { session }, error } = await cliente.auth.getSession();
-    
-    if (session && session.user && !error) { 
-        usuarioAtual = session.user; 
-        await window.iniciarApp(); 
-    } else { 
-        const telaApp = document.getElementById('tela-app');
-        const telaLogin = document.getElementById('tela-login');
-        if (telaApp) telaApp.classList.add('oculto'); 
-        if (telaLogin) telaLogin.classList.remove('oculto'); 
+    const abertura = document.getElementById('abertura-suiri');
+    const telaLogin = document.getElementById('tela-login');
+    const telaApp = document.getElementById('tela-app');
+    try {
+        if (!cliente) throw new Error('A conexão com o serviço de login está indisponível.');
+        const {data: {session}, error} = await cliente.auth.getSession();
+        if (error) throw error;
+        if (session?.user) {
+            usuarioAtual = session.user;
+            await window.iniciarApp();
+        }
+    } catch (erro) {
+        const mensagem = document.getElementById('msg-erro');
+        if (mensagem) {
+            mensagem.textContent = 'Não foi possível recuperar a sessão. Confira a conexão e tente novamente.';
+            mensagem.classList.remove('oculto');
+        }
+        console.error(erro);
+    } finally {
+        abertura?.classList.add('oculto');
+        if (telaApp?.classList.contains('oculto')) telaLogin?.classList.remove('oculto');
     }
 };
 
@@ -2238,6 +2403,7 @@ if (cliente && cliente.auth) {
         } else if (event === 'PASSWORD_RECOVERY') {
             setTimeout(() => window.abrirRecuperacaoSuiri(), 0);
         } else if (event === 'SIGNED_OUT') {
+            window.pararInterfaceSuiri?.();
             usuarioAtual = null; perfilAtual = null; empresaAtualId = null;
             window.fecharLeitorCameraGestao?.();
             window.inicializarCardapioConsumo?.();

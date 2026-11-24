@@ -33,9 +33,6 @@
     const itemCatalogado = () => cacheCardapioConsumo.find(item => chave(item.nome_item) === chave(nome.value));
     const solicitacaoPendente = () => itensPessoais.find(item => item.status === 'pendente' && chave(item.nome_item) === chave(nome.value));
 
-    sino.classList.add('consumo-sino');
-    suiriEl('abrir-ajustes-marca').before(sino);
-
     function fecharSugestoes() {
         sugestoes.classList.remove('ativo');
         sugestoes.replaceChildren();
