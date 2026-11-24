@@ -123,7 +123,7 @@ const offlineUser=users['novo@example.com'].id;
 await esperar(()=>!el('btn-ponto-entrada').classList.contains('oculto'));
 Object.defineProperty(win.navigator,'onLine',{value:false,configurable:true});
 click('#btn-ponto-entrada');await esperar(()=>win.obterFilaOffline().length===1 && !el('btn-ponto-saida').classList.contains('oculto'));
-click('#btn-ponto-saida');await esperar(()=>win.obterFilaOffline().length===2 && el('status-ponto').textContent.includes('Concluído'));
+click('#btn-ponto-saida');await esperar(()=>win.obterFilaOffline().length===2 && el('status-ponto').textContent.includes('Aguardando sincronização'));
 Object.defineProperty(win.navigator,'onLine',{value:true,configurable:true});await win.processarFilaOffline();assert.equal(win.obterFilaOffline().length,0);
 const pontosOffline=(await db.query('select * from livro_ponto where perfil_id=$1',[offlineUser])).rows;assert.equal(pontosOffline.length,1);assert.ok(pontosOffline[0].horario_saida);console.log('offline clock in/out then replay: one complete record PASS');
 const parsed=win.parseCardapioSuiri('Água; 1.234,56\nágua; 7,00\nLinha sem preço');assert.equal(parsed.itens.length,1);assert.equal(parsed.itens[0].valor_padrao,7);assert.deepEqual([...parsed.erros],[3]);console.log('menu decimal comma / thousands / dedupe / invalid line: PASS');
