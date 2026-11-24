@@ -11,6 +11,7 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.BitmapFactory;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
@@ -51,6 +52,7 @@ public final class MainActivity extends Activity {
     private static final int LOCATION_REQUEST = 12;
     private static final int NOTIFICATION_REQUEST = 13;
     private static final int FILE_PICKER_REQUEST = 14;
+    private static final int SAVE_FILE_REQUEST = 15;
 
     private WebView web;
     private FrameLayout root;
@@ -58,6 +60,8 @@ public final class MainActivity extends Activity {
     private GeolocationPermissions.Callback locationCallback;
     private String notificationPermissionCall;
     private ValueCallback<Uri[]> picker;
+    private String saveRequest;
+    private byte[] pendingFile;
     private boolean openAlerts;
     private boolean ready;
     private NotificationManager notifications;
@@ -65,11 +69,13 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         notifications = getSystemService(NotificationManager.class);
-        NotificationChannel channel = new NotificationChannel(CHANNEL, "Avisos do Suíri", NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("Mensagens da equipe e avisos operacionais");
-        channel.enableVibration(true);
-        channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-        notifications.createNotificationChannel(channel);
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL, "Avisos do Suíri", NotificationManager.IMPORTANCE_HIGH);
+            channel.setDescription("Mensagens da equipe e avisos operacionais");
+            channel.enableVibration(true);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+            notifications.createNotificationChannel(channel);
+        }
 
         root = new FrameLayout(this);
         web = new WebView(this);
@@ -271,6 +277,17 @@ public final class MainActivity extends Activity {
         if (code == FILE_PICKER_REQUEST && picker != null) {
             picker.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
             picker = null;
+        } else if (code == SAVE_FILE_REQUEST && saveRequest != null) {
+            String id = saveRequest;
+            byte[] bytes = pendingFile;
+            saveRequest = null;
+            pendingFile = null;
+            Uri destination = result == RESULT_OK && data != null ? data.getData() : null;
+            if (destination == null) reply(id, false);
+            else new Thread(() -> {
+                boolean saved = writeFile(destination, bytes);
+                runOnUiThread(() -> reply(id, saved));
+            }).start();
         }
     }
 
@@ -290,69 +307,4 @@ public final class MainActivity extends Activity {
                 Intent intent = new Intent(this, MainActivity.class).setAction(ALERT_ACTION);
                 PendingIntent pending = PendingIntent.getActivity(this, 0, intent,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                Notification notification = new Notification.Builder(this, CHANNEL)
-                    .setSmallIcon(R.drawable.ic_alert)
-                    .setContentTitle(title)
-                    .setContentText(body)
-                    .setStyle(new Notification.BigTextStyle().bigText(body))
-                    .setContentIntent(pending)
-                    .setAutoCancel(true)
-                    .setVisibility(Notification.VISIBILITY_PRIVATE)
-                    .build();
-                notifications.notify(id, 1, notification);
-            }
-        } catch (JSONException | SecurityException error) {
-            android.util.Log.w("Suiri", "Falha ao exibir um aviso", error);
-        }
-    }
-
-    private final class NativeBridge {
-        @JavascriptInterface public void ready() {
-            runOnUiThread(() -> { ready = true; dispatchOpenAlerts(); });
-        }
-        @JavascriptInterface public void palette(boolean dark) { runOnUiThread(() -> setPalette(dark)); }
-        @JavascriptInterface public void open(String url) { runOnUiThread(() -> openExternal(url)); }
-        @JavascriptInterface public void notifyDetails(String events) { runOnUiThread(() -> displayNotifications(events)); }
-        @JavascriptInterface public void clearNotifications() { runOnUiThread(() -> notifications.cancelAll()); }
-        @JavascriptInterface public void requestNotifications(String id) {
-            runOnUiThread(() -> {
-                if (Build.VERSION.SDK_INT < 33 || has(Manifest.permission.POST_NOTIFICATIONS)) {
-                    reply(id, allowedNotifications());
-                } else if (notificationPermissionCall == null) {
-                    notificationPermissionCall = id;
-                    requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_REQUEST);
-                } else reply(id, false);
-            });
-        }
-        @JavascriptInterface public boolean saveFile(String b64, String name, String mime) {
-            if (Build.VERSION.SDK_INT < 29 || b64.length() > 60_000_000
-                || !Arrays.asList("text/csv", "application/pdf").contains(mime)) return false;
-            String safe = name.replaceAll("[/\\\\\r\n]", "_");
-            if (safe.isEmpty()) return false;
-            Uri item = null;
-            try {
-                byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Downloads.DISPLAY_NAME, safe);
-                values.put(MediaStore.Downloads.MIME_TYPE, mime);
-                values.put(MediaStore.Downloads.IS_PENDING, 1);
-                item = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-                if (item == null) return false;
-                try (OutputStream out = getContentResolver().openOutputStream(item)) {
-                    if (out == null) throw new IOException("Arquivo indisponível");
-                    out.write(bytes);
-                }
-                values.clear();
-                values.put(MediaStore.Downloads.IS_PENDING, 0);
-                if (getContentResolver().update(item, values, null, null) == 1) return true;
-            } catch (IOException | RuntimeException error) {
-                android.util.Log.w("Suiri", "Falha ao salvar arquivo", error);
-            }
-            if (item != null) {
-                try { getContentResolver().delete(item, null, null); }
-                catch (RuntimeException error) { android.util.Log.w("Suiri", "Falha ao limpar arquivo", error); }
-            }
-            return false;
-        }
-    }
-}
+    

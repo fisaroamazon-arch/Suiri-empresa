@@ -21,11 +21,10 @@ else
   python3 "$android/preparar-assets.py" "$project" "$temp/assets/public"
 fi
 cp -r "$android/res/." "$temp/res/"
-cp "$temp/assets/public/icon-192x192.png" "$temp/res/drawable/suiri.png"
 
 "$tools/aapt2" compile --dir "$temp/res" -o "$temp/res.zip"
 "$tools/aapt2" link -I "$platform" --manifest "$android/AndroidManifest.xml" \
-  --min-sdk-version 29 --target-sdk-version 35 \
+  --min-sdk-version 24 --target-sdk-version 35 \
   --version-code "${SUIRI_VERSION_CODE:-43007}" --version-name "${SUIRI_VERSION_NAME:-4.3.0-teste.7}" \
   --rename-manifest-package br.com.suiri.empresateste --java "$temp/java" \
   -A "$temp/assets" -o "$temp/unsigned.apk" "$temp/res.zip"
@@ -34,7 +33,7 @@ mapfile -t sources < <(find "$android/src" "$temp/java" -name "*.java" -print)
 java -m jdk.compiler/com.sun.tools.javac.Main -source 8 -target 8 -classpath "$platform" \
     -encoding UTF-8 -d "$temp/classes" "${sources[@]}"
 mapfile -t classes < <(find "$temp/classes" -name "*.class" -print)
-"$tools/d8" --lib "$platform" --min-api 29 --release --output "$temp/dex" "${classes[@]}"
+"$tools/d8" --lib "$platform" --min-api 24 --release --output "$temp/dex" "${classes[@]}"
 python3 - "$temp/unsigned.apk" "$temp/dex/classes.dex" <<'PY'
 import sys
 from zipfile import ZipFile, ZIP_DEFLATED

@@ -1,2 +1,4 @@
 /* O contêiner nativo aplica os recuos da barra do sistema e do teclado. */
 .modal-overlay, dialog { overscroll-behavior: contain; }
+
+.suiri-baixar-apk { display: none; }

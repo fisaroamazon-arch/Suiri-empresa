@@ -9,14 +9,22 @@
         pendentes.get(id)?.(resultado);
         pendentes.delete(id);
     };
+    function solicitarNativo(executar) {
+        return new Promise(resolve => {
+            const id = String(++ordem);
+            pendentes.set(id, resolve);
+            try { executar(id); }
+            catch {
+                pendentes.delete(id);
+                resolve(false);
+            }
+        });
+    }
+
     window.suiriAndroid = {
         site: 'https://fisaroamazon-arch.github.io/Suiri-empresa/',
         permitirNotificacoes() {
-            return new Promise(resolve => {
-                const id = String(++ordem);
-                pendentes.set(id, resolve);
-                nativo.requestNotifications(id);
-            });
+            return solicitarNativo(id => nativo.requestNotifications(id));
         },
         async notificarDetalhes(novas) {
             nativo.notifyDetails(JSON.stringify(novas.map(item => ({
@@ -31,7 +39,7 @@
                 leitor.onerror = () => reject(leitor.error);
                 leitor.readAsDataURL(blob);
             });
-            return nativo.saveFile(dados, nome, tipo);
+            return solicitarNativo(id => nativo.saveFile(id, dados, nome, tipo));
         }
     };
 
