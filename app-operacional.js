@@ -23,10 +23,10 @@ window.obterNomeColaborador = function(id, fallback = 'Equipe') {
 window.obterAvatarColaborador = function(id) {
     if (!id) return null;
     if (typeof mapaPerfis !== 'undefined' && mapaPerfis[id] && mapaPerfis[id].avatar_url) {
-        return mapaPerfis[id].avatar_url;
+        return window.urlAvatarSuiri ? window.urlAvatarSuiri(mapaPerfis[id].avatar_url) : mapaPerfis[id].avatar_url;
     }
     if (typeof usuarioAtual !== 'undefined' && usuarioAtual && usuarioAtual.id === id) {
-        return perfilAtual?.avatar_url || null;
+        return window.urlAvatarSuiri ? window.urlAvatarSuiri(perfilAtual?.avatar_url) : perfilAtual?.avatar_url || null;
     }
     return null;
 };
@@ -41,17 +41,53 @@ window.formatarTempoDuracao = function(minutosTotais) {
 };
 
 // ------------------ LIVRO DE PONTO COM RESILIÊNCIA OFFLINE ------------------
+function configuracaoPontoEmpresa() {
+    if (!empresaAtualId || String(dadosEmpresaAtual?.id) !== String(empresaAtualId)) {
+        throw new Error('Não foi possível verificar as regras de ponto da empresa. Conecte-se e atualize os dados.');
+    }
+    return dadosEmpresaAtual;
+}
+
+window.atualizarIndicacaoLocalizacaoPonto = function() {
+    const indicacao = document.getElementById('ponto-localizacao-indicacao');
+    if (!indicacao) return;
+    const ativa = !!empresaAtualId && String(dadosEmpresaAtual?.id) === String(empresaAtualId)
+        && dadosEmpresaAtual.ponto_raio_m > 0;
+    indicacao.classList.toggle('oculto', !ativa);
+    if (ativa) indicacao.textContent = 'Este ponto requer localização precisa dentro da área da empresa.';
+};
+
+async function obterLocalizacaoPonto() {
+    const {ponto_latitude: latitude, ponto_longitude: longitude, ponto_raio_m: raio} = configuracaoPontoEmpresa();
+    if (raio == null) return {};
+    const posicao = await window.suiriObterLocalizacao();
+    const radianos = graus => graus * Math.PI / 180;
+    const dLat = radianos(posicao.latitude - latitude);
+    const dLon = radianos(posicao.longitude - longitude);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(radianos(latitude))
+        * Math.cos(radianos(posicao.latitude)) * Math.sin(dLon / 2) ** 2;
+    const distancia = 12742000 * Math.asin(Math.sqrt(Math.max(0, Math.min(1, a))));
+    if (distancia > raio) throw new Error('Você está fora da área definida pela empresa.');
+    if (distancia + posicao.precisao > raio) {
+        throw new Error('A localização está imprecisa para esta área. Aproxime-se do centro da empresa, ative a localização precisa e tente novamente.');
+    }
+    return {ponto_geolocalizacao: posicao};
+}
+
 window.carregarStatusPonto = async function() {
-    if (!usuarioAtual) return;
-    const hoje = window.dataLocal(); 
-    const { data: dadosServidor, error: erroPonto } = await cliente.from('livro_ponto').select('*').eq('perfil_id', usuarioAtual.id).eq('data_registro', hoje).order('criado_em', { ascending: false }).limit(1);
+    const uid = usuarioAtual?.id;
+    const empresa = empresaAtualId;
+    if (!uid || !empresa) return;
+    const hoje = window.dataLocal();
+    const { data: dadosServidor, error: erroPonto } = await cliente.from('livro_ponto').select('*').eq('perfil_id', uid).eq('data_registro', hoje).order('criado_em', { ascending: false }).limit(1);
+    if (usuarioAtual?.id !== uid || empresaAtualId !== empresa) return;
     let data = dadosServidor;
     const filaPonto=window.obterFilaOffline();
     const entradaPendente=filaPonto.filter(i=>i.tipo==='ponto' && i.payload.data_registro===hoje).at(-1)?.payload;
     if(entradaPendente){
-        const saidaPendente=filaPonto.filter(i=>i.tipo==='ponto_update' && i.payload.entrada_operacao===entradaPendente.suiri_operacao_id).at(-1)?.payload;
-        data=[{...entradaPendente,...(saidaPendente||{}),offline:true}];
-    } else if(erroPonto && registroPontoAtual?.data_registro===hoje) data=[registroPontoAtual];
+        data=[entradaPendente];
+    } else if (erroPonto && registroPontoAtual?.data_registro === hoje && registroPontoAtual.perfil_id === uid
+        && String(registroPontoAtual.empresa_id) === String(empresa)) data = [registroPontoAtual];
     else if(erroPonto) { window.mostrarToast('Não foi possível consultar seu ponto. Confira a conexão.', 'erro'); return; }
 
     const btnPontoEntrada = document.getElementById('btn-ponto-entrada');
@@ -69,7 +105,13 @@ window.carregarStatusPonto = async function() {
 
     if (data && data.length > 0) {
         registroPontoAtual = data[0];
-        if (registroPontoAtual.status_turno === 'folga') {
+        const saidaPendente = filaPonto.find(({tipo, payload}) => tipo === 'ponto_update' && (
+            (payload.id && payload.id === registroPontoAtual.id) ||
+            (payload.entrada_operacao && payload.entrada_operacao === registroPontoAtual.suiri_operacao_id)
+        ));
+        if (saidaPendente) {
+            statusPonto.textContent = 'Saída salva no aparelho. Aguardando sincronização.';
+        } else if (registroPontoAtual.status_turno === 'folga') {
             statusPonto.innerHTML = `<span style="color:var(--cor-sucesso); font-weight:700;">Dia de Descanso (Folga Semanal / Agendada)</span>`;
         } else if (registroPontoAtual.status_turno === 'falta') {
             statusPonto.innerHTML = `<span style="color:var(--cor-erro); font-weight:700;">Ausência Registrada (Falta)</span>`;
@@ -104,52 +146,58 @@ window.carregarStatusPonto = async function() {
     }
 };
 
-document.getElementById('btn-ponto-entrada')?.addEventListener('click', async () => {
-    if (!usuarioAtual) return;
-    const hoje = window.dataLocal();
-    const agora = new Date().toISOString();
-    const payload = { 
-        perfil_id: usuarioAtual.id, 
-        empresa_id: empresaAtualId,
-        data_registro: hoje, 
-        status_turno: 'presente',
-        horario_entrada: agora 
-    };
+async function registrarPonto(evento, saida) {
+    const uid = usuarioAtual?.id;
+    const empresa = empresaAtualId;
+    const registro = registroPontoAtual;
+    if (!uid || !empresa || (saida && (registro?.perfil_id !== uid
+        || String(registro.empresa_id) !== String(empresa)))) return;
 
-    const res = await window.executarOuOffline('ponto', payload, () => cliente.from('livro_ponto').insert([payload]));
+    await suiriExecutar(evento.currentTarget, async () => {
+        if (navigator.onLine) await window.carregarDadosEmpresa();
+        if (usuarioAtual?.id !== uid || empresaAtualId !== empresa) return;
+        const localizacao = await obterLocalizacaoPonto();
+        if (usuarioAtual?.id !== uid || empresaAtualId !== empresa) return;
 
-    if (res?.error) return window.mostrarToast('Não foi possível registrar o ponto: ' + res.error.message, 'erro');
-    window.somIniciarTarefa();
-    window.mostrarToast(res.offline ? "Ponto gravado offline! Sincronizará com a rede." : "Bom turno de trabalho!");
-    await window.carregarStatusPonto();
-    if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
-});
+        const agora = new Date().toISOString();
+        if (!saida) {
+            const payload = {
+                perfil_id: uid,
+                empresa_id: empresa,
+                data_registro: window.dataLocal(),
+                status_turno: 'presente',
+                horario_entrada: agora,
+                ...localizacao
+            };
+            const res = await window.executarOuOffline('ponto', payload, () => cliente.from('livro_ponto').insert([payload]));
+            if (usuarioAtual?.id !== uid || empresaAtualId !== empresa) return;
+            if (res?.error) throw new Error('Não foi possível registrar a entrada: ' + res.error.message);
+            window.somIniciarTarefa();
+            window.mostrarToast(res.offline ? 'Entrada salva no aparelho. Aguardando sincronização.' : 'Entrada registrada.');
+        } else {
+            const ehFreelance = perfilAtual?.tipo_contrato === 'freelance';
+            const payload = {
+                id: registro.id,
+                entrada_operacao: registro.suiri_operacao_id || null,
+                horario_saida: agora,
+                status_turno: ehFreelance ? 'aguardando_aprovacao_diaria' : 'presente',
+                ...localizacao
+            };
+            const res = await window.executarOuOffline('ponto_update', payload, () => window.enviarSaidaPonto(payload));
+            if (usuarioAtual?.id !== uid || empresaAtualId !== empresa) return;
+            if (res?.error) throw new Error('Não foi possível registrar a saída: ' + res.error.message);
+            window.somConcluirTarefa();
+            window.mostrarToast(res.offline ? 'Saída salva no aparelho. Aguardando sincronização.'
+                : ehFreelance ? 'Turno encerrado. Diária submetida à aprovação.' : 'Saída registrada.');
+        }
+        await window.carregarStatusPonto();
+        if (saida && typeof window.carregarAvisos === 'function') window.carregarAvisos();
+        if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
+    });
+}
 
-document.getElementById('btn-ponto-saida')?.addEventListener('click', async () => {
-    if (!registroPontoAtual) return;
-    const agora = new Date().toISOString();
-    const ehFreelance = perfilAtual?.tipo_contrato === 'freelance';
-    const novoStatus = ehFreelance ? 'aguardando_aprovacao_diaria' : 'presente';
-
-    const payload = { 
-        id: registroPontoAtual.id,
-        entrada_operacao: registroPontoAtual.suiri_operacao_id || null,
-        horario_saida: agora,
-        status_turno: novoStatus
-    };
-
-    const res = await window.executarOuOffline('ponto_update', payload, () => cliente.from('livro_ponto').update({ 
-        horario_saida: agora,
-        status_turno: novoStatus
-    }).eq(registroPontoAtual.id ? 'id' : 'suiri_operacao_id', registroPontoAtual.id || registroPontoAtual.suiri_operacao_id));
-
-    if (res?.error) return window.mostrarToast('Não foi possível registrar a saída: ' + res.error.message, 'erro');
-    window.somConcluirTarefa();
-    window.mostrarToast(ehFreelance ? "Turno encerrado! Diária submetida à aprovação." : (res.offline ? "Saída salva offline!" : "Turno encerrado com sucesso!"));
-    await window.carregarStatusPonto();
-    if (typeof window.carregarAvisos === 'function') window.carregarAvisos();
-    if (typeof window.carregarPainelAoVivo === 'function') window.carregarPainelAoVivo();
-});
+document.getElementById('btn-ponto-entrada')?.addEventListener('click', evento => registrarPonto(evento, false));
+document.getElementById('btn-ponto-saida')?.addEventListener('click', evento => registrarPonto(evento, true));
 
 // ------------------ GESTÃO DE PRESENÇA NA INSPEÇÃO ------------------
 window.lancarGestaoPresencaInspecao = async function() {
@@ -246,58 +294,45 @@ window.reprovarDiariaFreelancer = async function(pontoId, avisoId) {
 };
 
 // ------------------ TAREFAS, RECORRÊNCIA, TEMPOS E SUBITENS ------------------
-let mapaTempoMedioTarefas = {};
+let mapaTempoMedioTarefas = new Map();
 
 window.calcularTempoMedioHistorico = function(todasTarefas) {
-    const historicoPorTitulo = {};
-
-    (todasTarefas || []).forEach(t => {
-        if (t.status === 'concluida' && t.hora_inicio && t.hora_fim) {
-            const minGasto = Math.round((new Date(t.hora_fim) - new Date(t.hora_inicio)) / 60000);
-            if (minGasto >= 1 && minGasto <= 600) {
-                const chaveTitulo = (t.titulo || '').trim().toLowerCase();
-                if (!historicoPorTitulo[chaveTitulo]) historicoPorTitulo[chaveTitulo] = [];
-                historicoPorTitulo[chaveTitulo].push(minGasto);
-            }
-        }
-    });
-
-    mapaTempoMedioTarefas = {};
-    Object.keys(historicoPorTitulo).forEach(chave => {
-        const tempos = historicoPorTitulo[chave];
-        const media = Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length);
-        mapaTempoMedioTarefas[chave] = {
-            mediaPadrao: media,
-            totalExecucoes: tempos.length
-        };
-    });
+    const historico = new Map();
+    const execucoes = new Set();
+    const inicioRegistrado = tarefa => Date.parse(Object.hasOwn(tarefa, 'suiri_pontos_inicio') ? tarefa.suiri_pontos_inicio : tarefa.hora_inicio);
+    const recentes = [...(todasTarefas || [])].sort((a, b) => (inicioRegistrado(b) || 0) - (inicioRegistrado(a) || 0));
+    for (const tarefa of recentes) {
+        if (tarefa.id == null || tarefa.status !== 'concluida') continue;
+        const fim = Date.parse(Object.hasOwn(tarefa, 'suiri_pontos_fim') ? tarefa.suiri_pontos_fim : tarefa.hora_fim);
+        const inicio = inicioRegistrado(tarefa);
+        const minutos = (fim - inicio) / 60000;
+        if (!Number.isFinite(minutos) || minutos < 1 || minutos > 600) continue;
+        const quantidadeAjudantes = contarAjudantesTarefa(tarefa);
+        const chave = JSON.stringify([tarefa.id, quantidadeAjudantes]);
+        const execucao = JSON.stringify([tarefa.id, inicio]);
+        if (execucoes.has(execucao)) continue;
+        execucoes.add(execucao);
+        const tempos = historico.get(chave) || [];
+        if (tempos.length < 10) tempos.push(minutos);
+        historico.set(chave, tempos);
+    }
+    mapaTempoMedioTarefas = historico;
 };
 
-window.obterTempoEstimadoAjustado = function(tituloTarefa, ajudantesCount = 0) {
-    const chave = (tituloTarefa || '').trim().toLowerCase();
-    const dados = mapaTempoMedioTarefas[chave];
+function contarAjudantesTarefa(tarefa) {
+    const ajudantes = Array.isArray(tarefa.ajudantes) ? tarefa.ajudantes : [];
+    return new Set(ajudantes.filter(id => id && id !== tarefa.assumido_por)).size;
+}
 
-    const baseMin = dados ? dados.mediaPadrao : 15;
-    const totalExecucoes = dados ? dados.totalExecucoes : 0;
-
-    let tempoFinal = baseMin;
-    let textoAjuste = '';
-
-    if (ajudantesCount === 1) {
-        tempoFinal = Math.max(1, Math.round(baseMin * (2 / 3)));
-        textoAjuste = ' (-33% com 1 ajudante)';
-    } else if (ajudantesCount >= 2) {
-        tempoFinal = Math.max(1, Math.round(baseMin * 0.5));
-        textoAjuste = ` (-50% com ${ajudantesCount} ajudantes)`;
-    }
-
-    return {
-        minutos: tempoFinal,
-        minutosBase: baseMin,
-        textoAjuste: textoAjuste,
-        temHistorico: totalExecucoes > 0,
-        totalExecucoes: totalExecucoes
-    };
+window.obterTempoEstimadoAjustado = function(tarefa) {
+    const quantidadeAjudantes = contarAjudantesTarefa(tarefa);
+    const chave = JSON.stringify([tarefa.id, quantidadeAjudantes]);
+    const amostras = mapaTempoMedioTarefas.get(chave) || [];
+    const temHistorico = amostras.length >= 3;
+    const minutos = temHistorico
+        ? Math.round(amostras.reduce((total, tempo) => total + tempo, 0) / amostras.length)
+        : 15;
+    return {minutos, temHistorico, totalExecucoes:amostras.length, pontosPrevistos:temHistorico ? minutos / 10 : null};
 };
 
 window.adicionarCampoSubitem = function() {
@@ -1108,25 +1143,30 @@ window.desenharTarefas = function(tarefas) {
         
         const responsavelNome = window.obterNomeColaborador(tarefa.assumido_por, '');
         const ajudantesLista = Array.isArray(tarefa.ajudantes) ? tarefa.ajudantes : [];
-        const qtdAjudantes = ajudantesLista.length;
         
-        const estaAtrasada = (tarefa.status !== 'concluida') && 
-                             tarefa.horario_limite_alerta && 
-                             (horaAgoraStr > tarefa.horario_limite_alerta);
+        const prazoExecucao = tarefa.status === 'em_andamento' ? Date.parse(tarefa.suiri_prazo_execucao) : NaN;
+        const estaAtrasada = Number.isFinite(prazoExecucao)
+            ? Date.now() >= prazoExecucao
+            : ['pendente', 'em_andamento'].includes(tarefa.status) &&
+                tarefa.horario_limite_alerta && horaAgoraStr > tarefa.horario_limite_alerta;
+        if (Number.isFinite(prazoExecucao)) card.dataset.prazoExecucao = String(prazoExecucao);
 
         let classeStatus = 'tarefa-pendente';
         let textoStatus = 'Aguardando início';
         let botaoHTML = `<button class="btn-acao btn-iniciar" onclick="window.iniciarTarefa('${tarefa.id}')">Pegar</button>`;
 
-        const infoTempo = window.obterTempoEstimadoAjustado(tarefa.titulo, qtdAjudantes);
+        const previsaoSalva = tarefa.status === 'em_andamento' && Number(tarefa.suiri_tempo_previsto_min);
+        const infoTempo = previsaoSalva
+            ? {minutos:previsaoSalva, pontosPrevistos:previsaoSalva / 10, temHistorico:true}
+            : window.obterTempoEstimadoAjustado(tarefa);
         let tagTempoMedioHTML = '';
         if (tarefa.status !== 'concluida' && tarefa.status !== 'aguardando_aprovacao') {
-            const classeReduzido = qtdAjudantes > 0 ? 'reduzido' : '';
-            const rotuloDuracao = window.formatarTempoDuracao(infoTempo.minutos);
-            const rotulo = infoTempo.temHistorico 
-                ? `⏱️ Média: ~${rotuloDuracao}${infoTempo.textoAjuste}` 
-                : `⏱️ Est.: ~${rotuloDuracao}`;
-            tagTempoMedioHTML = `<div class="tarefa-tempo-medio ${classeReduzido}">${rotulo}</div>`;
+            const duracao = window.formatarTempoDuracao(infoTempo.minutos);
+            const pontos = infoTempo.pontosPrevistos?.toLocaleString('pt-BR', {maximumFractionDigits:1});
+            const rotulo = infoTempo.temHistorico
+                ? `${previsaoSalva ? 'Prazo' : 'Média'}: ${duracao} · ${pontos} pts previstos`
+                : `Estimativa inicial: ${duracao} · Aprendendo (${infoTempo.totalExecucoes}/3)`;
+            tagTempoMedioHTML = `<div class="tarefa-tempo-medio">${rotulo}</div>`;
         }
 
         const subitens = Array.isArray(tarefa.subitens) ? tarefa.subitens : [];
@@ -1223,9 +1263,12 @@ window.desenharTarefas = function(tarefas) {
             botaoHTML = ''; 
         }
 
-        if (estaAtrasada) {
-            classeStatus += ' tarefa-atrasada-alerta';
-            textoStatus += ` <span style="color:var(--cor-erro); font-weight:800; display:block; margin-top:2px;">🚨 Atrasada! Limite era às ${tarefa.horario_limite_alerta}</span>`;
+        if (estaAtrasada) classeStatus += ' tarefa-atrasada-alerta';
+        if (Number.isFinite(prazoExecucao)) {
+            const minutos = Math.max(0, Math.floor((Date.now() - prazoExecucao) / 60000));
+            textoStatus += ` <span class="suiri-prazo-aviso" ${estaAtrasada ? '' : 'hidden'}>Atrasada há ${minutos} min</span>`;
+        } else if (estaAtrasada) {
+            textoStatus += ` <span class="suiri-prazo-aviso">Atrasada. Limite às ${esc(tarefa.horario_limite_alerta)}</span>`;
         }
 
         const prio = tarefa.prioridade || '3';
@@ -1237,7 +1280,7 @@ window.desenharTarefas = function(tarefas) {
         const tagLimiteAlerta = tarefa.horario_limite_alerta ? `<span style="font-size:10px; color:${estaAtrasada ? 'var(--cor-erro)' : 'var(--texto-suave)'}; font-weight:700;">⏰ Limite: ${tarefa.horario_limite_alerta}</span>` : '';
 
         let btnCobrarWhatsHTML = '';
-        if (estaAtrasada && temPermissaoGerencial) {
+        if (estaAtrasada && tarefa.horario_limite_alerta && temPermissaoGerencial) {
             const idAlvo = tarefa.assumido_por || tarefa.destinado_a;
             const colabAlvo = idAlvo ? mapaPerfis[idAlvo] : null;
             if (colabAlvo && colabAlvo.telefone_whatsapp) {
@@ -1343,13 +1386,31 @@ window.cobrarTarefaWhatsApp = function(telefone, nome, titulo, limite) {
 // ------------------ PAINEL AO VIVO COM AVATARES & FILTRO (06:00 ÀS 23:30) ------------------
 let cacheTimelineOperacionalDia = [];
 
+function atualizarPrazoVisivelSuiri() {
+    if (document.hidden || !usuarioAtual) return;
+    const agora = Date.now();
+    for (const card of document.querySelectorAll('[data-prazo-execucao]')) {
+        const restante = agora - Number(card.dataset.prazoExecucao);
+        const aviso = card.querySelector('.suiri-prazo-aviso');
+        if (!aviso || restante < 0) continue;
+        card.classList.add('tarefa-atrasada-alerta');
+        aviso.hidden = false;
+        const texto = `Atrasada há ${Math.floor(restante / 60000)} min`;
+        if (aviso.textContent !== texto) aviso.textContent = texto;
+    }
+}
+window.setInterval(atualizarPrazoVisivelSuiri, 15000);
+
+let consultaPainelAoVivo = 0;
 window.carregarPainelAoVivo = async function() {
+    if (!usuarioAtual || !empresaAtualId) return;
+    const consulta = ++consultaPainelAoVivo;
+    const uid = usuarioAtual.id;
     const containerGrade = document.getElementById('grade-colaboradores-painel');
     const containerHistorico = document.getElementById('lista-historico-diario');
     const selFiltroColab = document.getElementById('filtro-historico-colab');
     if (!containerGrade || !containerHistorico) return;
 
-    containerGrade.innerHTML = '';
     const listaFuncionarios = Object.values(mapaPerfis || {});
 
     if (listaFuncionarios.length === 0) {
@@ -1373,7 +1434,9 @@ window.carregarPainelAoVivo = async function() {
     if (empresaAtualId) {
         queryPontos = queryPontos.eq('empresa_id', empresaAtualId);
     }
-    const { data: pontosHoje } = await queryPontos;
+    const { data: pontosHoje, error } = await queryPontos;
+    if (consulta !== consultaPainelAoVivo || uid !== usuarioAtual?.id || error) return;
+    containerGrade.innerHTML = '';
     const mapaPontoHoje = {};
     (pontosHoje || []).forEach(p => { mapaPontoHoje[p.perfil_id] = p; });
 
@@ -1558,7 +1621,8 @@ window.carregarPainelAoVivo = async function() {
     });
 
     (cacheTarefas || []).forEach(t => {
-        const dataReferencia = t.hora_fim || t.hora_inicio || t.criado_em;
+        if (!['em_andamento', 'aguardando_aprovacao', 'concluida'].includes(t.status)) return;
+        const dataReferencia = t.hora_fim || t.hora_inicio;
         if (!dataReferencia) return;
         const dataEvt = new Date(dataReferencia);
         if (dataEvt < inicioJanelaHoje || dataEvt > fimJanelaHoje) return;
@@ -1575,9 +1639,12 @@ window.carregarPainelAoVivo = async function() {
             }
         }
 
-        const ajudantesLista = Array.isArray(t.ajudantes) ? t.ajudantes : [];
+        const ajudantesLista = Array.isArray(t.ajudantes)
+            ? [...new Set(t.ajudantes.filter(id => id && id !== t.assumido_por))]
+            : [];
         const ajudantesNomes = ajudantesLista.map(id => window.obterNomeColaborador(id, 'Colega')).join(', ');
-        const infoAjudantes = ajudantesNomes ? ` | 🤝 Ajudantes: <strong>${esc(ajudantesNomes)}</strong>` : '';
+        const infoAjudantes = ajudantesNomes ? `<span>Apoio: ${esc(ajudantesNomes)}</span>` : '';
+        const tipoParticipacao = ajudantesLista.length ? 'Em grupo' : 'Individual';
 
         const participantesIds = [t.assumido_por, ...ajudantesLista].filter(Boolean);
         let stackHTML = '<div class="avatar-historico-stack">';
@@ -1585,7 +1652,7 @@ window.carregarPainelAoVivo = async function() {
             const pNome = window.obterNomeColaborador(pId, 'Colaborador');
             const pAvatar = window.obterAvatarColaborador(pId);
             if (pAvatar) {
-                stackHTML += `<img src="${pAvatar}" class="avatar-colab-mini" loading="lazy" title="${esc(pNome)}" alt="${esc(pNome)}">`;
+                stackHTML += `<img src="${esc(pAvatar)}" class="avatar-colab-mini" loading="lazy" title="${esc(pNome)}" alt="${esc(pNome)}">`;
             } else {
                 stackHTML += `<div class="avatar-colab-mini" title="${esc(pNome)}">${esc(pNome.charAt(0).toUpperCase())}</div>`;
             }
@@ -1606,7 +1673,7 @@ window.carregarPainelAoVivo = async function() {
             dataHora: dataEvt,
             horaStr: horaStr,
             tagStatus: tagStatus,
-            texto: `<strong>${esc(t.titulo)}</strong> — Feita por <strong>${esc(quem)}</strong>${infoAjudantes} ${tempoTexto}`,
+            texto: `<strong>${esc(t.titulo)}</strong><span>${tipoParticipacao} · Responsável: ${esc(quem)}</span>${infoAjudantes}<span>${tempoTexto.trim()}</span>`,
             avatarStackHTML: stackHTML
         });
     });
@@ -1648,19 +1715,10 @@ window.filtrarHistoricoDiarioPorColab = function(colabId) {
                 <div style="font-size:11px; white-space:nowrap; text-align:right; font-weight:700; color:var(--cor-primaria);">${item.horaStr}</div>
             `;
         } else {
-            div.style.flexDirection = 'column';
-            div.style.alignItems = 'stretch';
-            div.style.gap = '6px';
+            div.classList.add('linha-tempo-tarefa');
             div.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; width:100%;">
-                    <div style="display:flex; align-items:center; gap:10px; flex:1;">
-                        ${item.avatarStackHTML}
-                        <div>${item.texto}</div>
-                    </div>
-                    <div style="font-size:11px; white-space:nowrap; text-align:right;">
-                        ${item.tagStatus} às ${item.horaStr}
-                    </div>
-                </div>
+                <div class="linha-tempo-tarefa-corpo">${item.avatarStackHTML}<div>${item.texto}</div></div>
+                <div class="linha-tempo-tarefa-status">${item.tagStatus} · ${item.horaStr}</div>
             `;
         }
         containerHistorico.appendChild(div);

@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "cd .. && node validacao/test-db.mjs && node validacao/test-extra.mjs && node validacao/test-consumo.mjs && node validacao/test-camera.mjs && node validacao/test-dom.mjs && node validacao/test-mobile.mjs && node validacao/test-repair-copy.mjs"
+    "test": "cd .. && node validacao/test-db.mjs && node validacao/test-extra.mjs && node validacao/test-ranking.mjs && node validacao/test-ponto-localizacao.mjs && node validacao/test-consumo.mjs && node validacao/test-camera.mjs && node validacao/test-quiosque.mjs && node validacao/test-dom.mjs && node validacao/test-mobile.mjs && node validacao/test-repair-copy.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.16",

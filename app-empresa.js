@@ -79,34 +79,58 @@ window.salvarFilaOffline = function(fila) {
     const chave = suiriChaveFila(); if (!chave) throw new Error('Entre na empresa para salvar alterações offline.');
     localStorage.setItem(chave, JSON.stringify(fila)); window.atualizarIndicadorOffline();
 };
+function suiriContextoFila() {
+    const chave = suiriChaveFila();
+    return chave ? {chave, user:usuarioAtual.id, empresa:empresaAtualId} : null;
+}
+function suiriEnfileirar(tipo, payload, contexto) {
+    if (!contexto) throw new Error('Entre na empresa para salvar alterações offline.');
+    const {chave,user,empresa} = contexto;
+    const fila = JSON.parse(localStorage.getItem(chave) || '[]');
+    fila.push({idLocal:suiriUID(),tipo,payload,user,empresa,timestamp:new Date().toISOString()});
+    localStorage.setItem(chave, JSON.stringify(fila));
+    if (chave === suiriChaveFila()) window.atualizarIndicadorOffline();
+}
 window.adicionarFilaOffline = function(tipo,payload) {
-    const fila = window.obterFilaOffline();
-    const item = {idLocal:suiriUID(),tipo,payload,user:usuarioAtual.id,empresa:empresaAtualId,timestamp:new Date().toISOString()};
-    fila.push(item); window.salvarFilaOffline(fila);
+    suiriEnfileirar(tipo, payload, suiriContextoFila());
 };
 window.executarOuOffline = async function(tipo,payload,fn) {
+    const contexto = suiriContextoFila();
+    const enfileirar = () => suiriEnfileirar(tipo, payload, contexto);
     if (tipo.endsWith('_insert') || tipo === 'ponto') payload.suiri_operacao_id ||= suiriUID();
     try {
-        if (!navigator.onLine) { window.adicionarFilaOffline(tipo,payload); return {offline:true}; }
+        if (!navigator.onLine) { enfileirar(); return {offline:true}; }
         const r = await fn();
         if (r?.error) {
-            if (r.error.code === '23505' && payload.suiri_operacao_id) {
+            if (r.error.code === '23505' && payload.suiri_operacao_id && contexto?.chave === suiriChaveFila()) {
                 const tabela = {ponto:'livro_ponto',tarefa_insert:'tarefas',consumo_insert:'itens_comprados',vale_insert:'vales',fechamento_caixa_insert:'fechamento_caixa'}[tipo];
                 if (tabela) {
                     const existe = await cliente.from(tabela).select('suiri_operacao_id').eq('suiri_operacao_id',payload.suiri_operacao_id).maybeSingle();
                     if (existe.data) return {success:true};
                 }
             }
-            if (!r.error.code && /fetch|network|failed to fetch/i.test(r.error.message || '')) { window.adicionarFilaOffline(tipo,payload); return {offline:true}; }
+            if (!r.error.code && /fetch|network|failed to fetch/i.test(r.error.message || '')) { enfileirar(); return {offline:true}; }
             return r;
         }
         return r || {success:true};
     } catch(e) {
         if (e instanceof TypeError && /fetch|network/i.test(e.message)) {
-            try { window.adicionarFilaOffline(tipo,payload); return {offline:true}; } catch(armazenamento) { return {error:armazenamento}; }
+            try { enfileirar(); return {offline:true}; } catch(armazenamento) { return {error:armazenamento}; }
         }
         return {error:e};
     }
+};
+window.enviarSaidaPonto = async function(payload) {
+    const chave = payload.id ? 'id' : 'suiri_operacao_id';
+    const valor = payload.id || payload.entrada_operacao;
+    const dados = {horario_saida: payload.horario_saida, status_turno: payload.status_turno};
+    if (payload.ponto_geolocalizacao) dados.ponto_geolocalizacao = payload.ponto_geolocalizacao;
+    const res = await cliente.from('livro_ponto').update(dados).eq(chave, valor).is('horario_saida', null).select('id').maybeSingle();
+    if (res.error || res.data) return res;
+    const existente = await cliente.from('livro_ponto').select('horario_saida').eq(chave, valor).maybeSingle();
+    if (existente.error) return existente;
+    if (Date.parse(existente.data?.horario_saida) === Date.parse(payload.horario_saida)) return {success: true};
+    return {error: {message: 'Registro da entrada indisponível ou turno já encerrado.'}};
 };
 let suiriSincronizando = false;
 window.processarFilaOffline = async function() {
@@ -120,7 +144,7 @@ window.processarFilaOffline = async function() {
             const inserts = {ponto:'livro_ponto',tarefa_insert:'tarefas',consumo_insert:'itens_comprados',vale_insert:'vales',fechamento_caixa_insert:'fechamento_caixa'};
             if (inserts[item.tipo]) query = cliente.from(inserts[item.tipo]).insert([p]);
             else if (item.tipo === 'consumo_rpc') query = cliente.rpc('suiri_lancar_consumo',p);
-            else if (item.tipo === 'ponto_update') query = cliente.from('livro_ponto').update({horario_saida:p.horario_saida,status_turno:p.status_turno}).eq(p.id?'id':'suiri_operacao_id',p.id||p.entrada_operacao);
+            else if (item.tipo === 'ponto_update') query = window.enviarSaidaPonto(p);
             else if (item.tipo === 'tarefa_update') query = cliente.from('tarefas').update(p.dados).eq('id',p.id);
             else if (item.tipo === 'aviso_leitura') query = cliente.rpc('suiri_ler_aviso',{p_id:String(p.id)});
             else { window.mostrarToast('Há uma ação offline desconhecida. Ela foi preservada para revisão.', 'erro'); break; }
@@ -144,7 +168,7 @@ window.processarFilaOffline = async function() {
 
 const suiriTelas = [
     ['operacao','conteudo-operacional','☀','Missão'],
-    ['painel','conteudo-painel-ao-vivo','♙','Equipe'],
+    ['painel','conteudo-painel-ao-vivo','♙','Ao vivo'],
     ['gestao','conteudo-gestao-compras-contas','▦','Gestão'],
     ['relatorios','conteudo-relatorios','▥','Relatórios'],
     ['admin','conteudo-admin','⚙','Admin'],
@@ -154,13 +178,13 @@ const suiriTelas = [
 let suiriTelaAtual = 'operacao';
 function suiriTelasPermitidas() {
     return suiriTelas.filter(([id]) => ['operacao','perfil','configuracoes'].includes(id) ||
-        (id === 'admin' ? !!perfilAtual?.is_admin : id === 'painel' ? window.podeSuiri('inspecao') :
+        (id === 'admin' ? window.podeSuiri('relatorios') : id === 'painel' ? window.podeSuiri('inspecao') :
         id === 'relatorios' ? window.podeSuiri('relatorios') : ['gestao','compras','contas','financeiro','fechar_caixa'].some(window.podeSuiri)));
 }
 const suiriAbrirPerfilAntigo = window.abrirPainelPerfil;
 const suiriAbrirEquipeAntigo = window.abrirPainelAoVivo;
 const suiriAlternarAntigo = window.alternarTelas;
-window.alternarTelas = function(tela) {
+window.alternarTelas = function(tela, secaoGestao) {
     if (!suiriTelasPermitidas().some(t => t[0] === tela)) { window.mostrarToast('Seu acesso não permite abrir esta tela.', 'erro'); return; }
     suiriTelas.forEach(([,id]) => suiriEl(id)?.classList.add('oculto'));
     if (tela === 'perfil') suiriAbrirPerfilAntigo();
@@ -173,7 +197,7 @@ window.alternarTelas = function(tela) {
     if (tela !== 'gestao') window.fecharLeitorCameraGestao?.();
     if (tela === 'operacao') window.atualizarConsumoSuiri?.(true);
     if (tela === 'gestao') {
-        suiriMostrarBlocoGestao();
+        suiriMostrarBlocoGestao(secaoGestao);
         if (suiriComercial()) window.carregarComercialSuiri();
     }
     if (tela === 'configuracoes') suiriAtualizarAjustes();
@@ -182,9 +206,12 @@ window.alternarTelas = function(tela) {
 window.abrirPainelPerfil = () => window.alternarTelas('perfil');
 window.abrirPainelAoVivo = () => window.alternarTelas('painel');
 window.fecharPainelPerfil = window.fecharPainelAoVivo = () => window.alternarTelas('operacao');
+function suiriTelasNoMenu() {
+    return suiriTelasPermitidas().filter(([id]) => id !== 'configuracoes');
+}
 function suiriDesenharNav() {
     const nav = suiriEl('suiri-nav'); if (!nav) return;
-    nav.innerHTML = suiriTelasPermitidas().map(([id,,icone,nome]) => `<button type="button" data-tela-suiri="${id}" ${id === suiriTelaAtual ? 'aria-current="page"' : ''}><span aria-hidden="true">${icone}</span><span>${nome}</span></button>`).join('');
+    nav.innerHTML = suiriTelasNoMenu().map(([id,,icone,nome]) => `<button type="button" data-tela-suiri="${id}" ${(id === suiriTelaAtual || (id === 'perfil' && suiriTelaAtual === 'configuracoes')) ? 'aria-current="page"' : ''}><span aria-hidden="true">${icone}</span><span>${nome}</span></button>`).join('');
     nav.querySelector('[aria-current]')?.scrollIntoView({block:'nearest',inline:'nearest'});
 }
 let suiriBlocoGestao = '';
@@ -193,6 +220,7 @@ function suiriMostrarBlocoGestao(escolha = suiriBlocoGestao) {
         ['comercial','comercial-suiri',suiriComercial()],
         ['pagar','suiri-bloco-pagar',window.podeSuiri('contas') || window.podeSuiri('gestao')],
         ['compras','suiri-bloco-compras',window.podeSuiri('compras') || window.podeSuiri('gestao')],
+        ['vales','cartao-financeiro-gerencial',window.podeSuiri('financeiro')],
         ['caixa','suiri-bloco-caixa',window.podeSuiri('fechar_caixa') || window.podeSuiri('relatorios')]
     ];
     const disponiveis = secoes.filter(([, , permitido]) => permitido);
@@ -233,7 +261,7 @@ window.iniciarAppSeguro = async function() {
 // Existing dangerous actions now have server-checked counterparts and clear entry points.
 window.excluirColaboradorModal = async function(id) {
     if (!perfilAtual?.is_admin) return suiriErro(new Error('Apenas administradores podem excluir membros.'));
-    if(id === undefined) id = suiriEl(suiriTelaAtual === 'admin' ? 'admin-select-colab' : 'select-inspecionar-colab')?.value;
+    if(id === undefined) id = suiriEl('select-inspecionar-colab')?.value;
     if (!id) return suiriErro(new Error('Selecione o membro a excluir.'));
     if (String(id) === String(usuarioAtual.id)) return suiriErro(new Error('Para excluir seu próprio acesso, use Ajustes.'));
     const nome = mapaPerfis[id]?.nome || 'este membro';
@@ -441,7 +469,7 @@ function suiriRenderContatos() {
     const contatos=suiriEstado.contatos.filter(c=>c.tipo===tipo && `${c.nome} ${c.documento||''} ${c.telefone||''}`.toLowerCase().includes(busca));
     suiriEl('suiri-contatos-lista').innerHTML=contatos.length?contatos.map(c=>{
         const saldo=suiriEstado.vendas.filter(v=>String(v.contato_id)===String(c.id)&&!v.cancelada_em).reduce((s,v)=>s+suiriSaldo(v),0);
-        return `<article class="contato-card"><div class="contato-avatar" aria-hidden="true">${esc(c.nome[0].toUpperCase())}</div><div><strong>${esc(c.nome)}</strong><p>${esc(c.documento || '')} ${esc(c.telefone || '')}</p><small>${c.tipo==='cliente'?'A receber: '+suiriMoeda(saldo):'Fornecedor'} ${c.ativo?'':' · Arquivado'}</small></div><div class="contato-acoes"><button type="button" class="btn-secundario" data-suiri-acao="editar-contato" data-id="${esc(c.id)}">Editar</button>${c.tipo==='cliente'?`<button type="button" class="btn-secundario" data-suiri-acao="historico" data-id="${esc(c.id)}">Histórico</button>`:''}<button type="button" class="btn-texto perigo" data-suiri-acao="arquivar-contato" data-id="${esc(c.id)}">${c.ativo?'Arquivar':'Reativar'}</button></div></article>`;
+        return `<article class="contato-card"><div class="contato-avatar" aria-hidden="true">${esc(c.nome[0].toUpperCase())}</div><div><strong>${esc(c.nome)}</strong><p>${esc(c.documento || '')} ${esc(c.telefone || '')}</p><small>${c.tipo==='cliente'?'A receber: '+suiriMoeda(saldo):esc(window.suiriCategorias?.nome(c.categoria_fornecedor, 'fornecedor')||'Fornecedor')} ${c.ativo?'':' · Arquivado'}</small></div><div class="contato-acoes"><button type="button" class="btn-secundario" data-suiri-acao="editar-contato" data-id="${esc(c.id)}">Editar</button>${c.tipo==='cliente'?`<button type="button" class="btn-secundario" data-suiri-acao="historico" data-id="${esc(c.id)}">Histórico</button>`:''}<button type="button" class="btn-texto perigo" data-suiri-acao="arquivar-contato" data-id="${esc(c.id)}">${c.ativo?'Arquivar':'Reativar'}</button></div></article>`;
     }).join(''):'<div class="suiri-vazio"><span>♧</span><strong>Nenhum cadastro encontrado</strong><p>Adicione seus clientes e fornecedores aqui.</p></div>';
 }
 function suiriTab(tab) {
@@ -468,16 +496,24 @@ function suiriAbrirContato(id) {
     const c=suiriEstado.contatos.find(c=>String(c.id)===String(id)) || {tipo:suiriEl('contato-filtro').value};
     const f=suiriEl('form-contato-suiri'); f.reset();
     for(const nome of ['id','nome','tipo','documento','telefone','email','endereco','observacoes']) if(f.elements[nome]) f.elements[nome].value=c[nome]||'';
+    window.suiriCategorias?.atualizarCampos();
+    if (f.elements.categoria_fornecedor) f.elements.categoria_fornecedor.value = c.categoria_fornecedor || '';
     suiriEl('modal-contato-suiri').classList.remove('oculto'); f.elements.nome.focus();
 }
-function suiriExportarCSV() {
+async function suiriExportarCSV() {
     const linhas=[['Cliente','Data da venda','Vencimento','Total R$','Recebido R$','Saldo R$','Situação','Itens','Observação']];
     for(const v of suiriVendasFiltradas()) {
         const saldo=suiriSaldo(v); linhas.push([suiriEstado.contatos.find(c=>String(c.id)===String(v.contato_id))?.nome||'',v.data_venda,v.vencimento,(v.total_centavos/100).toFixed(2),((v.total_centavos-saldo)/100).toFixed(2),((v.cancelada_em?0:saldo)/100).toFixed(2),suiriStatusVenda(v),(v.itens||[]).map(i=>`${i.quantidade}x ${i.descricao}`).join(' / '),v.observacao||'']);
     }
     const campo=v=>{let texto=String(v);if(/^\s*[=+@-]/.test(texto))texto="'"+texto;return '"'+texto.replace(/"/g,'""')+'"';};
     const blob=new Blob(['\uFEFF'+linhas.map(l=>l.map(campo).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'});
-    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='suiri-contas-a-receber-'+window.dataLocal()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+    const nome = 'suiri-contas-a-receber-' + window.dataLocal() + '.csv';
+    if (window.suiriAndroid?.salvarArquivo) {
+        if (!await window.suiriAndroid.salvarArquivo(blob, nome, 'text/csv')) throw new Error('O Android não conseguiu salvar o CSV.');
+        window.mostrarToast('CSV salvo.');
+        return;
+    }
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=nome;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 window.parseCardapioSuiri = function(texto) {
     const linhas=String(texto).split(/\r?\n/).filter(x=>x.trim()); const itens=[], erros=[], mapa=new Map();
@@ -528,15 +564,18 @@ function suiriMontarUI() {
     <div id="modal-venda-suiri" class="modal-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="venda-titulo"><div class="modal-conteudo modal-grande"><div class="modal-header"><h3 id="venda-titulo">Nova venda / conta a receber</h3><button type="button" class="btn-secundario" data-fechar-suiri="modal-venda-suiri" aria-label="Fechar">×</button></div><form id="form-venda-suiri" class="suiri-form"><label>Cliente<select id="venda-cliente" required></select></label><div class="suiri-grid"><label>Data da venda<input type="date" id="venda-data" required></label><label>Vencimento<input type="date" id="venda-vencimento" required></label></div><div id="venda-itens"></div><button type="button" class="btn-secundario" data-suiri-acao="adicionar-linha">+ Adicionar item</button><label>Observação<textarea id="venda-observacao" rows="2" maxlength="2000"></textarea></label><div class="venda-total">Total da venda <strong id="venda-total">R$ 0,00</strong></div><small>Ao registrar, os novos produtos entram automaticamente no catálogo. O pagamento é lançado separadamente.</small><button class="btn-principal" type="submit">Registrar venda</button></form></div></div>
     <div id="modal-receber-suiri" class="modal-overlay oculto" role="dialog" aria-modal="true" aria-labelledby="receber-titulo"><div class="modal-conteudo"><div class="modal-header"><h3 id="receber-titulo">Registrar recebimento</h3><button type="button" class="btn-secundario" data-fechar-suiri="modal-receber-suiri" aria-label="Fechar">×</button></div><p id="receber-resumo"></p><form id="form-receber-suiri" class="suiri-form"><input type="hidden" id="receber-venda"><label>Valor recebido<input id="receber-valor" inputmode="decimal" required></label><label>Data<input id="receber-data" type="date" required></label><label>Forma<select id="receber-forma"><option>Pix</option><option>Dinheiro</option><option>Cartão</option><option>Transferência</option><option>Boleto</option><option>Outro</option></select></label><label>Observação<textarea id="receber-obs" maxlength="1000" rows="2"></textarea></label><small>Permite pagamentos parciais. O saldo será recalculado.</small><button type="submit" class="btn-principal">Confirmar recebimento</button></form></div></div>
     <div id="modal-recuperacao-suiri" class="modal-overlay oculto" role="dialog" aria-modal="true" aria-label="Criar nova senha"><div class="modal-conteudo"><h3>Escolha sua nova senha</h3><form id="form-recuperacao-suiri" class="suiri-form"><label>Nova senha<input id="recuperacao-nova-senha" type="password" minlength="8" autocomplete="new-password" required></label><label>Repita a senha<input id="recuperacao-confirmar" type="password" minlength="8" autocomplete="new-password" required></label><button type="submit" class="btn-principal">Salvar nova senha</button></form></div></div>`);
-    suiriEl('tela-app').insertAdjacentHTML('beforeend',`<main id="conteudo-configuracoes" class="oculto"><section class="cartao-geral"><div class="suiri-eyebrow">DO SEU JEITO</div><h2>Configurações</h2><p class="suiri-intro">Aparência, navegação e sua conta.</p><div class="suiri-ajuste"><div><strong>Aparência</strong><p>Escolha o tema que combina com seu dia.</p></div><select id="suiri-tema" aria-label="Tema"><option value="sistema">Como o aparelho</option><option value="claro">Claro</option><option value="escuro">Escuro</option></select></div><label class="suiri-ajuste"><div><strong>Deslizar entre as telas</strong><p>Arraste para a esquerda ou direita fora de campos e listas.</p></div><input type="checkbox" id="suiri-gestos"></label><div class="suiri-ajuste"><div><strong id="ajustes-empresa-nome">Sua empresa</strong><p id="ajustes-empresa-cnpj"></p></div><button type="button" class="btn-secundario" data-suiri-admin onclick="window.abrirModalPerfilEmpresa()">Editar empresa</button></div><button type="button" class="btn-secundario" onclick="fazerLogoff()">Sair da conta</button><div class="suiri-zona-exclusao"><h3>Exclusões definitivas</h3><p>Leia a confirmação com atenção. O último administrador precisa transferir a administração antes de excluir somente sua conta.</p><button type="button" class="btn-erro" data-suiri-acao="excluir-conta">Excluir minha conta</button><div data-suiri-admin><p>Excluir a empresa remove os dados do aplicativo e as contas de todos os membros vinculados.</p><button type="button" class="btn-erro" data-suiri-acao="excluir-empresa">Excluir empresa e todos os acessos</button></div></div><p id="fila-antiga-aviso" class="oculto">Há dados de uma fila offline antiga neste aparelho. Eles foram preservados e não serão enviados automaticamente, pois não registravam o dono da conta.</p></section></main>`);
-    suiriEl('conteudo-gestao-compras-contas').insertAdjacentHTML('afterbegin',`<section id="comercial-suiri" class="painel-unificado-bloco"><div class="comercial-cabecalho"><div><h2>Vendas e recebimentos</h2></div><button type="button" class="btn-principal" data-suiri-acao="nova-venda">+ Nova venda</button></div><div class="suiri-kpis"><div><span>A receber</span><strong id="suiri-total-receber">—</strong></div><div><span>Em atraso</span><strong id="suiri-total-atrasado">—</strong></div><div><span>Clientes ativos</span><strong id="suiri-total-clientes">—</strong></div></div><div class="suiri-tabs" role="tablist" aria-label="Gestão comercial"><button type="button" role="tab" data-comercial-tab="receber" aria-selected="true">↗ Contas a receber</button><button type="button" role="tab" data-comercial-tab="contatos" aria-selected="false">♧ Clientes e fornecedores</button></div><p id="comercial-status" role="status"></p><div data-comercial-painel="receber"><div class="suiri-filtros"><label class="sr-only" for="comercial-busca">Buscar vendas</label><input id="comercial-busca" placeholder="Buscar cliente ou produto…"><select id="comercial-situacao" aria-label="Situação"><option value="aberto">Em aberto</option><option value="atrasada">Em atraso</option><option value="paga">Recebidas</option><option value="cancelada">Canceladas</option><option value="todas">Todas</option></select><select id="filtro-comercial-pessoa" aria-label="Cliente"></select></div><details class="suiri-detalhes"><summary>Período e exportação</summary><div class="suiri-filtros"><label>Vendas de<input type="date" id="comercial-inicio"></label><label>Até<input type="date" id="comercial-fim"></label><button type="button" class="btn-secundario" data-suiri-acao="csv">↓ Planilha CSV</button><button type="button" class="btn-secundario" data-suiri-acao="pdf-comercial">▥ Relatório PDF</button></div></details><div id="suiri-vendas-lista"></div></div><div data-comercial-painel="contatos" class="oculto"><div class="suiri-filtros"><select id="contato-filtro" aria-label="Tipo de cadastro"><option value="cliente">Clientes</option><option value="fornecedor">Fornecedores</option></select><input id="contato-busca" placeholder="Buscar nome, documento ou telefone…" aria-label="Buscar contato"><button type="button" class="btn-principal" data-suiri-acao="novo-contato">+ Cadastrar</button></div><div id="suiri-contatos-lista"></div></div></section><div class="suiri-atalhos" aria-label="Seções de Gestão"><button type="button" data-atalho-suiri="comercial">Vendas e recebimentos</button><button type="button" data-atalho-suiri="pagar">Contas a pagar</button><button type="button" data-atalho-suiri="compras">Compras</button><button type="button" data-atalho-suiri="caixa">Caixa</button><button type="button" data-suiri-catalogo onclick="window.abrirModalGerenciarCardapio()">Cardápio</button></div>`);
+    suiriEl('tela-app').insertAdjacentHTML('beforeend',`<main id="conteudo-configuracoes" class="oculto"><section class="cartao-geral"><button type="button" class="btn-secundario" onclick="window.alternarTelas('perfil')">Voltar ao perfil</button><h2>Configurações</h2><div class="suiri-ajuste suiri-baixar-apk"><div><strong>Aplicativo Android</strong><p>Suíri Empresa 4.4.2 · APK de teste</p></div><a class="btn-secundario" href="downloads/Suiri-Empresa.apk" download>Baixar APK para Android</a></div><div class="suiri-ajuste"><div><strong>Aparência</strong><p>Escolha o tema que combina com seu dia.</p></div><select id="suiri-tema" aria-label="Tema"><option value="sistema">Como o aparelho</option><option value="claro">Claro</option><option value="escuro">Escuro</option></select></div><label class="suiri-ajuste"><div><strong>Deslizar entre as telas</strong><p>Arraste para a esquerda ou direita fora de campos e listas.</p></div><input type="checkbox" id="suiri-gestos"></label><div class="suiri-ajuste"><div><strong id="ajustes-empresa-nome">Sua empresa</strong><p id="ajustes-empresa-cnpj"></p></div><button type="button" class="btn-secundario" data-suiri-admin onclick="window.abrirModalPerfilEmpresa()">Editar empresa</button></div><button type="button" class="btn-secundario" onclick="fazerLogoff()">Sair da conta</button><div class="suiri-zona-exclusao"><h3>Exclusões definitivas</h3><p>Leia a confirmação com atenção. O último administrador precisa transferir a administração antes de excluir somente sua conta.</p><button type="button" class="btn-erro" data-suiri-acao="excluir-conta">Excluir minha conta</button><div data-suiri-admin><p>Excluir a empresa remove os dados do aplicativo e as contas de todos os membros vinculados.</p><button type="button" class="btn-erro" data-suiri-acao="excluir-empresa">Excluir empresa e todos os acessos</button></div></div><p id="fila-antiga-aviso" class="oculto">Há dados de uma fila offline antiga neste aparelho. Eles foram preservados e não serão enviados automaticamente, pois não registravam o dono da conta.</p></section></main>`);
+    suiriEl('conteudo-gestao-compras-contas').insertAdjacentHTML('afterbegin',`<section id="comercial-suiri" class="painel-unificado-bloco"><div class="comercial-cabecalho"><div><h2>Vendas e recebimentos</h2></div><button type="button" class="btn-principal" data-suiri-acao="nova-venda">+ Nova venda</button></div><div class="suiri-kpis"><div><span>A receber</span><strong id="suiri-total-receber">—</strong></div><div><span>Em atraso</span><strong id="suiri-total-atrasado">—</strong></div><div><span>Clientes ativos</span><strong id="suiri-total-clientes">—</strong></div></div><div class="suiri-tabs" role="tablist" aria-label="Gestão comercial"><button type="button" role="tab" data-comercial-tab="receber" aria-selected="true">↗ Contas a receber</button><button type="button" role="tab" data-comercial-tab="contatos" aria-selected="false">♧ Clientes e fornecedores</button></div><p id="comercial-status" role="status"></p><div data-comercial-painel="receber"><div class="suiri-filtros"><label class="sr-only" for="comercial-busca">Buscar vendas</label><input id="comercial-busca" placeholder="Buscar cliente ou produto…"><select id="comercial-situacao" aria-label="Situação"><option value="aberto">Em aberto</option><option value="atrasada">Em atraso</option><option value="paga">Recebidas</option><option value="cancelada">Canceladas</option><option value="todas">Todas</option></select><select id="filtro-comercial-pessoa" aria-label="Cliente"></select></div><details class="suiri-detalhes"><summary>Período e exportação</summary><div class="suiri-filtros"><label>Vendas de<input type="date" id="comercial-inicio"></label><label>Até<input type="date" id="comercial-fim"></label><button type="button" class="btn-secundario" data-suiri-acao="csv">↓ Planilha CSV</button><button type="button" class="btn-secundario" data-suiri-acao="pdf-comercial">▥ Relatório PDF</button></div></details><div id="suiri-vendas-lista"></div></div><div data-comercial-painel="contatos" class="oculto"><div class="suiri-filtros"><select id="contato-filtro" aria-label="Tipo de cadastro"><option value="cliente">Clientes</option><option value="fornecedor">Fornecedores</option></select><input id="contato-busca" placeholder="Buscar nome, documento ou telefone…" aria-label="Buscar contato"><button type="button" class="btn-principal" data-suiri-acao="novo-contato">+ Cadastrar</button></div><div id="suiri-contatos-lista"></div></div></section><div class="suiri-atalhos" aria-label="Seções de Gestão"><button type="button" data-atalho-suiri="comercial">Vendas e recebimentos</button><button type="button" data-atalho-suiri="pagar">Contas a pagar</button><button type="button" data-atalho-suiri="compras">Compras</button><button type="button" data-atalho-suiri="vales" hidden>Vales</button><button type="button" data-atalho-suiri="caixa">Caixa</button><button type="button" data-suiri-catalogo onclick="window.abrirModalGerenciarCardapio()">Cardápio</button></div>`);
+    suiriEl('form-lancar-vale')?.addEventListener('submit', event => {
+        event.preventDefault();
+        window.lancarVale();
+    });
     const blocos=suiriEl('conteudo-gestao-compras-contas').querySelectorAll(':scope > .painel-unificado-bloco');
     if(blocos[1])blocos[1].id='suiri-bloco-compras';if(blocos[2])blocos[2].id='suiri-bloco-pagar';
     const atalhos=suiriEl('conteudo-gestao-compras-contas').querySelector('.suiri-atalhos');
     atalhos.before(Object.assign(document.createElement('h2'),{textContent:'Gestão',className:'suiri-gestao-titulo'}));
     atalhos.after(suiriEl('comercial-suiri'));
     suiriEl('input-conta-fornecedor-gestao').setAttribute('list','sugestoes-fornecedores');
-    suiriEl('admin-box-permissoes').insertAdjacentHTML('beforeend','<button type="button" class="btn-erro" data-suiri-admin onclick="window.excluirColaboradorModal(document.getElementById(\'admin-select-colab\').value)">Excluir este membro</button>');
     suiriEl('modal-gerenciar-cardapio').querySelector('.modal-conteudo').insertAdjacentHTML('beforeend',`<details class="suiri-importar"><summary>Importar cardápio por texto ou arquivo</summary><p>Uma linha por produto: <b>Suco de uva; 12,50</b>. Você revisa antes de salvar. Máximo: 500 itens por envio.</p><label>Arquivo de texto (.txt ou .csv)<input type="file" id="cardapio-arquivo" accept=".txt,.csv,text/plain,text/csv"></label><label>Texto do cardápio<textarea id="cardapio-texto" rows="6" placeholder="Suco de uva; 12,50&#10;Água mineral; 5,00"></textarea></label><button type="button" class="btn-secundario" data-suiri-acao="preview-cardapio">Revisar texto</button><button type="button" class="btn-secundario" data-suiri-acao="cardapio-original">Carregar cardápio original do Sabor da Costa</button><p id="cardapio-preview" aria-live="polite"></p><label><input id="cardapio-atualizar" type="checkbox"> Atualizar preço dos itens já cadastrados</label><button type="button" class="btn-principal" data-suiri-acao="importar-cardapio" id="btn-importar-cardapio" disabled>Importar itens revisados</button></details>`);
     suiriEl('form-venda-suiri').addEventListener('submit',e=>{e.preventDefault();suiriExecutar(e.submitter,async()=>{
         const itens=suiriObterItens();if(!itens.length)throw new Error('Adicione pelo menos um item.');
@@ -547,6 +586,9 @@ function suiriMontarUI() {
     });});
     suiriEl('form-contato-suiri').addEventListener('submit',e=>{e.preventDefault();const form=e.currentTarget;suiriExecutar(e.submitter,async()=>{
         const fd=new FormData(form);const dados=Object.fromEntries(fd);const id=dados.id;delete dados.id;dados.nome=dados.nome.trim();
+        if (window.suiriCategorias?.disponivel()) {
+            dados.categoria_fornecedor = dados.tipo === 'fornecedor' ? dados.categoria_fornecedor || null : null;
+        } else delete dados.categoria_fornecedor;
         if(!dados.nome)throw new Error('Informe o nome.');
         if(id) await suiriDB(cliente.from('suiri_contatos').update(dados).eq('id',id));
         else {form.dataset.id ||= suiriUID();await suiriDB(cliente.from('suiri_contatos').upsert([{...dados,id:form.dataset.id}],{onConflict:'id'}));}
@@ -597,7 +639,8 @@ function suiriMontarUI() {
         if(!inicio||!e.changedTouches.length)return;
         const dx=e.changedTouches[0].clientX-inicio.x,dy=e.changedTouches[0].clientY-inicio.y,dt=Date.now()-inicio.t;inicio=null;
         if(Math.abs(dx)<85||Math.abs(dx)<Math.abs(dy)*1.8||dt>850)return;
-        const telas=suiriTelasPermitidas(),i=telas.findIndex(t=>t[0]===suiriTelaAtual),destino=telas[i+(dx<0?1:-1)];
+        if (suiriTelaAtual === 'configuracoes') return;
+        const telas=suiriTelasNoMenu(),i=telas.findIndex(t=>t[0]===suiriTelaAtual),destino=telas[i+(dx<0?1:-1)];
         if(destino)window.alternarTelas(destino[0]);
     },{passive:true});
     document.addEventListener('touchcancel',()=>inicio=null,{passive:true});
@@ -631,7 +674,7 @@ document.addEventListener('click',e=>{
         }else if(acao==='estornar'||acao==='cancelar-venda'){
             const motivo=prompt(acao==='estornar'?'Motivo do estorno (preserva o histórico):':'Motivo do cancelamento da venda:');if(!motivo?.trim())return;
             await suiriDB(cliente.rpc(acao==='estornar'?'suiri_estornar_recebimento':'suiri_cancelar_venda',{p_id:id,p_motivo:motivo.trim()}));await window.carregarComercialSuiri();
-        }else if(acao==='csv')suiriExportarCSV();
+        }else if(acao==='csv')await suiriExportarCSV();
         else if(acao==='pdf-comercial')await suiriPDFComercial();
         else if(acao==='excluir-conta')await window.excluirContaSuiri(false);
         else if(acao==='excluir-empresa')await window.excluirContaSuiri(true);
@@ -650,7 +693,16 @@ async function suiriPDFComercial() {
     const vendas=suiriVendasFiltradas();
     const el=document.createElement('div');el.className='suiri-pdf';
     el.innerHTML=`<h1>${esc(dadosEmpresaAtual?.nome_fantasia || 'Suiri')}</h1><p>CNPJ: ${esc(dadosEmpresaAtual?.cnpj || '')}</p><h2>Contas a receber</h2><p>Emissão: ${suiriData(window.dataLocal())}. Filtros: ${esc(suiriEstado.filtro)} · vendas de ${suiriData(suiriEstado.inicio)} até ${suiriData(suiriEstado.fim)}.</p>${vendas.length?vendas.map(v=>`<section><h3>${esc(suiriEstado.contatos.find(c=>String(c.id)===String(v.contato_id))?.nome || 'Cliente')}</h3><p>Venda: ${suiriData(v.data_venda)} | Vencimento: ${suiriData(v.vencimento)} | ${esc(suiriStatusVenda(v))}</p><p>Total: ${suiriMoeda(v.total_centavos)} | Saldo: ${suiriMoeda(v.cancelada_em?0:suiriSaldo(v))}</p><p>${(v.itens||[]).map(i=>`${esc(i.quantidade)} × ${esc(i.descricao)} (${suiriMoeda(i.valor_centavos)})`).join(' · ')}</p><p>${esc(v.observacao || '')}</p></section>`).join(''):'<p>Nenhuma venda corresponde aos filtros.</p>'}`;
-    await html2pdf().set({margin:12,filename:'suiri-receber-'+window.dataLocal()+'.pdf',html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4'},pagebreak:{mode:['css','legacy']}}).from(el).save();
+    const nome = 'suiri-receber-' + window.dataLocal() + '.pdf';
+    const pdf = html2pdf().set({margin:12,filename:nome,html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4'},pagebreak:{mode:['css','legacy']}}).from(el);
+    if (window.suiriAndroid?.salvarArquivo) {
+        if (!await window.suiriAndroid.salvarArquivo(await pdf.outputPdf('blob'), nome, 'application/pdf')) {
+            throw new Error('O Android não conseguiu salvar o PDF.');
+        }
+        window.mostrarToast('PDF salvo.');
+    } else {
+        await pdf.save();
+    }
 }
 
 async function suiriLimparArquivos(usuario,todaEmpresa) {

@@ -52,6 +52,8 @@ window.carregarItensComprasModal = async function() {
     }
 
     cachePedidosCompra = data || [];
+    await window.suiriCategorias?.carregar();
+    window.suiriCategorias?.atualizarCampos();
     window.renderizarQuadroComprasModal();
     window.renderizarQuadroComprasUnificado();
 };
@@ -92,7 +94,7 @@ window.renderizarQuadroComprasModal = function() {
         return;
     }
 
-    const categoriasParaExibir = filtroCat === 'todos' ? CATEGORIAS_COMPRA : [filtroCat];
+    const categoriasParaExibir = [...new Set(itensFiltrados.map(p => p.categoria || 'Frutos do mar'))];
 
     categoriasParaExibir.forEach(catNome => {
         const itensDaCat = itensFiltrados.filter(p => (p.categoria || 'Frutos do mar') === catNome);
@@ -108,7 +110,7 @@ window.renderizarQuadroComprasModal = function() {
 
         secao.innerHTML = `
             <div class="secao-categoria-compras-titulo">
-                <span>🐟 ${esc(catNome)}</span>
+                <span>${esc(window.suiriCategorias?.nome(catNome) || catNome)}</span>
                 ${infoBadge}
             </div>
             <div class="secao-categoria-compras-lista"></div>
@@ -173,7 +175,7 @@ window.renderizarQuadroComprasUnificado = function() {
         return;
     }
 
-    const categoriasParaExibir = filtroCat === 'todos' ? CATEGORIAS_COMPRA : [filtroCat];
+    const categoriasParaExibir = [...new Set(itensFiltrados.map(p => p.categoria || 'Frutos do mar'))];
 
     categoriasParaExibir.forEach(catNome => {
         const itensDaCat = itensFiltrados.filter(p => (p.categoria || 'Frutos do mar') === catNome);
@@ -190,7 +192,7 @@ window.renderizarQuadroComprasUnificado = function() {
 
         secao.innerHTML = `
             <div class="secao-categoria-compras-titulo">
-                <span>🐟 ${esc(catNome)}</span>
+                <span>${esc(window.suiriCategorias?.nome(catNome) || catNome)}</span>
                 ${infoBadge}
             </div>
             <div class="secao-categoria-compras-lista"></div>
@@ -294,7 +296,15 @@ window.emitirRelatorioComprasGestao = function() {
 
     if (dIniEl) dIniEl.value = window.dataLocal(data30diasAtras);
     if (dFimEl) dFimEl.value = window.dataLocal(agora);
-    if (tRelEl) tRelEl.value = 'pedidos';
+    if (tRelEl) {
+        tRelEl.value = 'pedidos';
+        tRelEl.dispatchEvent(new Event('change'));
+    }
+    const categoria = document.getElementById('filtro-categoria-relatorio');
+    if (categoria) {
+        const filtroAtivo = document.getElementById('filtro-categoria-gestao-compras')?.value;
+        categoria.value = filtroAtivo || 'todos';
+    }
 
     window.alternarTelas('relatorios');
     window.gerarRelatorio();
@@ -306,6 +316,7 @@ window.emitirRelatorioComprasModal = function() {
 };
 
 window.carregarPedidosCompra = async function() {
+    await window.suiriCategorias?.carregar();
     const temPermissao = perfilAtual?.is_admin || perfilAtual?.is_socio || perfilAtual?.is_gerente;
     const container = document.getElementById('lista-pedidos');
     if (!container) return;
@@ -330,7 +341,8 @@ window.carregarPedidosCompra = async function() {
         const card = document.createElement('div');
         card.className = 'cartao-lista cartao-pedido';
         const nomeSolicitante = window.obterNomeColaborador ? window.obterNomeColaborador(pedido.criado_por, 'Equipe') : 'Equipe';
-        const cat = pedido.categoria || 'Geral';
+        const chaveCategoria = pedido.categoria || 'Frutos do mar';
+        const cat = window.suiriCategorias?.nome(chaveCategoria) || chaveCategoria;
         const dataPedido = pedido.criado_em ? pedido.criado_em.split('T')[0].split('-').reverse().join('/') : '-';
 
         card.innerHTML = `
@@ -1080,6 +1092,7 @@ window.gerarRelatorio = async function() {
     const filtroFunc = document.getElementById('filtro-func-relatorio')?.value || 'todos';
     const filtroSetor = document.getElementById('filtro-setor-relatorio')?.value || 'todos';
     const tipoSelecionado = document.getElementById('tipo-relatorio')?.value;
+    const filtroCategoria = document.getElementById('filtro-categoria-relatorio')?.value || 'todos';
     
     if (dataInicio && dataFim && dataInicio > dataFim) return window.mostrarToast('A data inicial deve ser anterior à final.', 'erro');
     if(!dataInicio || !dataFim) return window.mostrarToast("Selecione o intervalo de datas.", "erro");
@@ -1096,9 +1109,11 @@ window.gerarRelatorio = async function() {
     const dataF = dataFim.split('-').reverse().join('/');
 
     const nomeFiltroFunc = filtroFunc !== 'todos' ? window.obterNomeColaborador(filtroFunc, 'Colaborador') : '';
-    const subtituloPdf = filtroFunc === 'todos' 
+    const categoriaPdf = tipoSelecionado === 'pedidos' && filtroCategoria !== 'todos'
+        ? ` | Categoria: ${window.suiriCategorias?.nome(filtroCategoria) || filtroCategoria}` : '';
+    const subtituloPdf = (filtroFunc === 'todos'
         ? `${nomeTipo} | Período: ${dataI} a ${dataF} (Setor: ${filtroSetor.toUpperCase()})` 
-        : `${nomeTipo}: ${nomeFiltroFunc} | Período: ${dataI} a ${dataF}`;
+        : `${nomeTipo}: ${nomeFiltroFunc} | Período: ${dataI} a ${dataF}`) + categoriaPdf;
     
     // Nomenclatura Inteligente do Arquivo PDF (ex: Relatorio_Filipe_23-10-2026.pdf)
     const nomeLimpoParaArquivo = nomeFiltroFunc ? nomeFiltroFunc.replace(/\s+/g, '_') : 'Equipe';
@@ -1142,7 +1157,8 @@ window.gerarRelatorio = async function() {
 
         pedidosRel = (todosPedidos || []).filter(p => {
             const dataBase = p.data_comprado || window.dataInstanteLocal(p.criado_em);
-            return dataBase >= dataInicio && dataBase <= dataFim;
+            const categoria = p.categoria || 'Frutos do mar';
+            return dataBase >= dataInicio && dataBase <= dataFim && (filtroCategoria === 'todos' || filtroCategoria === categoria);
         });
 
         if (filtroFunc !== 'todos') {
@@ -1304,7 +1320,7 @@ window.gerarRelatorio = async function() {
                     ${cnpjEmpresa ? cnpjEmpresa + ' | ' : ''}${telEmpresa}
                     ${endEmpresa ? `<br>${endEmpresa}` : ''}
                 </div>
-                <p style="font-size: 11px; color: #333; font-weight: 600; margin: 6px 0 0 0;">${subtituloPdf}</p>
+                <p style="font-size: 11px; color: #333; font-weight: 600; margin: 6px 0 0 0;">${esc(subtituloPdf)}</p>
                 ${detalheContratoPDF ? `<div style="font-size:10px; color:#1e293b; margin-top:4px;">${detalheContratoPDF}</div>` : ''}
             </div>
     `;
@@ -1410,7 +1426,8 @@ window.gerarRelatorio = async function() {
 
             pedidosRel.forEach(p => {
                 const st = p.status || (p.lido ? 'comprado' : 'pendente');
-                const cat = p.categoria || 'Frutos do mar';
+                const chaveCategoria = p.categoria || 'Frutos do mar';
+                const cat = window.suiriCategorias?.nome(chaveCategoria) || chaveCategoria;
                 const solicitante = window.obterNomeColaborador ? window.obterNomeColaborador(p.criado_por, 'Equipe') : 'Equipe';
                 const dataPedido = p.criado_em ? p.criado_em.split('T')[0].split('-').reverse().join('/') : '-';
                 
@@ -1571,7 +1588,7 @@ window.gerarRelatorio = async function() {
     }
 };
 
-window.imprimirPDF = function() {
+window.imprimirPDF = async function() {
     const btn = document.getElementById('btn-imprimir-pdf');
     if(!btn) return;
     btn.textContent = 'Gerando PDF...';
@@ -1593,13 +1610,20 @@ window.imprimirPDF = function() {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
     };
 
-    html2pdf().set(opt).from(elementoPdf).save().then(() => {
-        btn.textContent = `Baixar ${nomeArquivoPdfSugerido}`;
-        window.mostrarToast(`PDF gerado: ${nomeArquivoPdfSugerido}`);
-    }).catch(err => {
-        window.mostrarToast("Erro ao gerar PDF: " + err.message, "erro");
-        btn.textContent = `Baixar ${nomeArquivoPdfSugerido}`;
-    });
+    try {
+        const pdf = html2pdf().set(opt).from(elementoPdf);
+        if (window.suiriAndroid?.salvarArquivo) {
+            const salvo = await window.suiriAndroid.salvarArquivo(await pdf.outputPdf('blob'), opt.filename, 'application/pdf');
+            if (!salvo) throw new Error('O Android não conseguiu salvar o arquivo.');
+        } else {
+            await pdf.save();
+        }
+        window.mostrarToast(`PDF gerado: ${opt.filename}`);
+    } catch (erro) {
+        window.mostrarToast('Erro ao gerar PDF: ' + erro.message, 'erro');
+    } finally {
+        btn.textContent = `Baixar ${opt.filename}`;
+    }
 };
 
 window.enviarResumoFechamentoWhatsApp = function() {

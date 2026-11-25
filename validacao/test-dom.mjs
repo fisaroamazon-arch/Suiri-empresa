@@ -27,7 +27,10 @@ async function abrir(user){
  win.fetch=(url,opts)=>{const p=fila.then(()=>backend(url,opts)).catch(e=>({ok:false,json:async()=>({data:null,error:{message:e.message,code:e.code||'QA'}})}));fila=p.then(()=>{});return p;};
  if(user)win.localStorage.setItem('qa_user',JSON.stringify(user));
  new vm.Script(fs.readFileSync('validacao/supabase-mock.js','utf8')).runInContext(dom.getInternalVMContext());
- for(const f of['app-core.js','app-operacional.js','app-gestao.js','cardapio-original.js','app-empresa.js','app-consumo.js','visual-suiri.js'])new vm.Script(fs.readFileSync(''+f,'utf8'),{filename:f}).runInContext(dom.getInternalVMContext());
+ for(const script of win.document.querySelectorAll('script[src]')){
+  const f=script.getAttribute('src').split('?')[0];
+  if(!f.startsWith('vendor/'))new vm.Script(fs.readFileSync(f,'utf8'),{filename:f}).runInContext(dom.getInternalVMContext());
+ }
  await esperar(()=>user?!el('tela-app').classList.contains('oculto'):true);
  await fila;await esperar(()=>!user||el('suiri-nav').children.length>0);return win;
 }
@@ -37,10 +40,10 @@ function input(id,value){el(id).value=value;el(id).dispatchEvent(new win.Event('
 function click(s){const x=typeof s==='string'?sel(s):s;assert.ok(x,'Elemento ausente: '+s);x.click();}
 async function submit(id){const f=el(id);const e=new win.Event('submit',{bubbles:true,cancelable:true});Object.defineProperty(e,'submitter',{value:f.querySelector('[type="submit"]')});f.dispatchEvent(e);await fila;}
 function nav(t){win.alternarTelas(t);}
-await abrir(users['admin@example.com']);assert.equal(el('suiri-nav').children.length,7);const todosIds=[...win.document.querySelectorAll('[id]')].map(n=>n.id);assert.equal(new Set(todosIds).size,todosIds.length);
+await abrir(users['admin@example.com']);assert.equal(el('suiri-nav').children.length,6);const todosIds=[...win.document.querySelectorAll('[id]')].map(n=>n.id);assert.equal(new Set(todosIds).size,todosIds.length);
 const faltando=[];for(const n of win.document.querySelectorAll('*'))for(const at of n.attributes)if(at.name.startsWith('on')){for(const m of at.value.matchAll(/(?<![.\w])(?:window\.)?([a-zA-Z_$][\w$]*)\s*\(/g)){if(['if','confirm'].includes(m[1]))continue;try{if(vm.runInContext('typeof '+m[1],domContext())!=='function')faltando.push(m[1]);}catch{faltando.push(m[1]);}}}
 assert.deepEqual([...new Set(faltando)],[]);console.log('unique element IDs and all static handler bindings: PASS');
-assert.equal(win.document.querySelectorAll('#suiri-nav svg').length,7);assert.equal(win.document.querySelectorAll('.suiri-marca-app img[src="marca-suiri.png"]').length,1);console.log('admin nav: 7 tabs with SVG icons and original Suiri logo PASS');
+assert.equal(win.document.querySelectorAll('#suiri-nav svg').length,6);assert.equal(win.document.querySelectorAll('.suiri-marca-app img[src="marca-suiri.png"]').length,1);console.log('admin nav: 6 tabs with SVG icons and original Suiri logo PASS');
 nav('gestao');assert.equal(el('suiri-bloco-pagar').hidden,true);
 click('[data-atalho-suiri="pagar"]');assert.equal(el('suiri-bloco-pagar').hidden,false);assert.equal(el('comercial-suiri').hidden,true);
 click('[data-atalho-suiri="comercial"]');await esperar(()=>el('comercial-status').textContent==='');click('[data-comercial-tab="contatos"]');click('[data-suiri-acao="novo-contato"]');
@@ -58,12 +61,12 @@ nav('relatorios');input('data-inicio',win.dataLocal());input('data-fim',win.data
 const adminId=users['admin@example.com'].id;
 await db.query("insert into suiri_contatos(empresa_id,tipo,nome) select empresa_id,'cliente','Cliente de volume '||s from perfis cross join generate_series(1,1001)s where perfis.id=$1",[adminId]);
 await win.carregarComercialSuiri();assert.equal(Number(el('suiri-total-clientes').textContent),1002);console.log('commercial pagination beyond 1000 records: PASS');
-await abrir(users['staff@example.com']);assert.equal(el('suiri-nav').children.length,3);nav('admin');assert.ok(el('conteudo-admin').classList.contains('oculto'));console.log('staff 3 tabs / admin forbidden: PASS');
+await abrir(users['staff@example.com']);assert.equal(el('suiri-nav').children.length,2);nav('admin');assert.ok(el('conteudo-admin').classList.contains('oculto'));console.log('staff 2 tabs / admin forbidden: PASS');
 click('#btn-ponto-entrada');await esperar(()=>!el('btn-ponto-saida').classList.contains('oculto'));click('#btn-ponto-saida');await esperar(()=>el('status-ponto').textContent.includes('Concluído'));console.log('clock in/out: PASS');
 const bad=await win.executarOuOffline('vale_insert',{valor:1},async()=>({error:{code:'42501',message:'Sem permissão'}}));assert.ok(bad.error);assert.equal(win.obterFilaOffline().length,0);console.log('server rejection is not offline success: PASS');
 const gesture=(target)=>{const start=new win.Event('touchstart',{bubbles:true});Object.defineProperty(start,'touches',{value:[{clientX:300,clientY:400}]});target.dispatchEvent(start);const end=new win.Event('touchend',{bubbles:true});Object.defineProperty(end,'changedTouches',{value:[{clientX:70,clientY:405}]});target.dispatchEvent(end);};
 gesture(el('secao-tarefas'));assert.ok(!el('conteudo-perfil').classList.contains('oculto'));console.log('swipe between permitted screens: PASS');
-await abrir();win.alternarModoCadastro();input('nome-cadastro','Novo funcionário');input('email','novo@example.com');input('senha','TesteSenha123!');await submit('form-login');input('input-onboarding-cnpj','19.131.243/0001-97');await win.confirmarValidacaoCNPJeCriarConta();assert.ok(!el('onboarding-empresa-encontrada').classList.contains('oculto'));await win.confirmarValidacaoCNPJeCriarConta();await esperar(()=>el('suiri-nav').children.length===3);console.log('two-step signup / CNPJ confirmation / staff role: PASS');
+await abrir();win.alternarModoCadastro();input('nome-cadastro','Novo funcionário');input('email','novo@example.com');input('senha','TesteSenha123!');await submit('form-login');input('input-onboarding-cnpj','19.131.243/0001-97');await win.confirmarValidacaoCNPJeCriarConta();assert.ok(!el('onboarding-empresa-encontrada').classList.contains('oculto'));await win.confirmarValidacaoCNPJeCriarConta();await esperar(()=>el('suiri-nav').children.length===2);console.log('two-step signup / CNPJ confirmation / staff role: PASS');
 // Submit as staff, review in another session, then use the approved catalog price.
 await abrir(users['staff@example.com']);
 assert.ok(el('btn-consumo-pendencias').classList.contains('oculto'));
@@ -120,7 +123,7 @@ const offlineUser=users['novo@example.com'].id;
 await esperar(()=>!el('btn-ponto-entrada').classList.contains('oculto'));
 Object.defineProperty(win.navigator,'onLine',{value:false,configurable:true});
 click('#btn-ponto-entrada');await esperar(()=>win.obterFilaOffline().length===1 && !el('btn-ponto-saida').classList.contains('oculto'));
-click('#btn-ponto-saida');await esperar(()=>win.obterFilaOffline().length===2 && el('status-ponto').textContent.includes('Concluído'));
+click('#btn-ponto-saida');await esperar(()=>win.obterFilaOffline().length===2 && el('status-ponto').textContent.includes('Aguardando sincronização'));
 Object.defineProperty(win.navigator,'onLine',{value:true,configurable:true});await win.processarFilaOffline();assert.equal(win.obterFilaOffline().length,0);
 const pontosOffline=(await db.query('select * from livro_ponto where perfil_id=$1',[offlineUser])).rows;assert.equal(pontosOffline.length,1);assert.ok(pontosOffline[0].horario_saida);console.log('offline clock in/out then replay: one complete record PASS');
 const parsed=win.parseCardapioSuiri('Água; 1.234,56\nágua; 7,00\nLinha sem preço');assert.equal(parsed.itens.length,1);assert.equal(parsed.itens[0].valor_padrao,7);assert.deepEqual([...parsed.erros],[3]);console.log('menu decimal comma / thousands / dedupe / invalid line: PASS');

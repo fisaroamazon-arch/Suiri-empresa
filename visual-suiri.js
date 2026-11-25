@@ -66,7 +66,7 @@
     document.getElementById('tema-interface')?.addEventListener('change',e=>window.aplicarTemaSuiri(e.target.value));
     document.getElementById('abrir-ajustes-marca')?.addEventListener('click',()=>window.alternarTelas('configuracoes'));
     const titulos = [
-        ['.cartao-ponto > h3','operacao'],['#secao-quadro-avisos h3','aviso'],['#secao-tarefas h3','tarefas'],
+        ['.cartao-ponto > h3','operacao'],['#secao-quadro-avisos summary','aviso'],['#secao-tarefas h3','tarefas'],
         ['#suiri-bloco-compras h3','compras'],['#suiri-bloco-pagar h3','pagar'],['#suiri-bloco-caixa h3','caixa'],
         ['#cartao-financeiro-gerencial h3','pagar'],['#conteudo-admin h3','admin'],
         ['#conteudo-painel-ao-vivo h3','painel'],['#conteudo-relatorios h3','relatorios']
