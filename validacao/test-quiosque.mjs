@@ -20,6 +20,10 @@ const equipe = [
     {id:'nova', nome:'Carla'}
 ];
 let trocas = 0;
+let recargas = 0;
+let trocasFalham = true;
+let eventoAuth;
+let inicializacoes = 0;
 let empresaVerificada = 'empresa';
 let verificarEquipe = async () => ({data:equipe, error:null});
 let tentativas = [];
@@ -40,8 +44,14 @@ Object.assign(win, {
             return verificarEquipe();
         },
         auth: {
+            onAuthStateChange: fn => { eventoAuth = fn; },
+            getSession: async () => ({data:{session:{user:atual}}, error:null}),
             setSession: async () => {
                 trocas++;
+                assert.equal(win.document.body.classList.contains('suiri-sessao-transicao'), true);
+                assert.equal(win.suiriConfirmandoTroca, true);
+                if (trocasFalham) return {error:{message:'Falha ao persistir sessão'}};
+                eventoAuth('SIGNED_IN', {user:nova});
                 return {data:{user:nova},error:null};
             }
         }
@@ -49,12 +59,8 @@ Object.assign(win, {
     SUPABASE_URL: 'https://suiri.test',
     SUPABASE_KEY: 'mock',
     iniciarAppSeguro: async () => {},
-    iniciarApp: async () => {
-        win.perfilAtual = {nome:'Carla'};
-        win.empresaAtualId = 'empresa';
-        el('tela-app').classList.remove('oculto');
-        await win.iniciarAppSeguro();
-    },
+    iniciarApp: async () => { inicializacoes++; },
+    recarregarTeste: () => { recargas++; },
     suiriExecutar: async (_, fn) => fn(),
     supabase: {
         createClient: (_, __, options) => {
@@ -84,6 +90,10 @@ win.localStorage.setItem('suiri-quiosque:empresa', JSON.stringify([
 win.localStorage.setItem('suiri-quiosque:outra', JSON.stringify([{id:'externa', email:'fora@example.test'}]));
 
 try {
+    const core = fs.readFileSync(new URL('../app-core.js', import.meta.url), 'utf8');
+    // Carrega o tratamento real das sessões e substitui apenas a navegação do navegador.
+    const trechoSessao = core.slice(core.indexOf('let sessaoSuiriRecarregando'), core.indexOf('// ------------------ EVENTOS DE INICIALIZAÇÃO'));
+    win.eval(trechoSessao.replace('window.location.reload();', 'window.recarregarTeste();'));
     win.eval(fs.readFileSync(new URL('../app-interface.js', import.meta.url), 'utf8'));
     await el('suiri-trocar-usuario').onclick();
     assert.deepEqual(lista().map(botao => botao.querySelector('span:last-child').firstChild.textContent), ['Ana','Bruno','Carla']);
@@ -120,10 +130,28 @@ try {
     empresaVerificada = 'empresa';
     await submit();
     assert.equal(trocas, 1);
-    assert.equal(win.usuarioAtual, nova);
+    assert.equal(recargas, 0);
+    assert.equal(win.usuarioAtual, atual);
+    assert.equal(win.suiriConfirmandoTroca, false);
+    assert.equal(win.document.body.classList.contains('suiri-sessao-transicao'), false);
+
+    el('suiri-quiosque-senha').value = 'correta';
+    trocasFalham = false;
+    await submit();
+    assert.equal(trocas, 2);
+    assert.equal(inicializacoes, 0);
+    assert.equal(recargas, 1);
+    assert.equal(win.usuarioAtual, null);
+    assert.equal(win.empresaAtualId, null);
     assert.equal(dialogo().open, false);
+    assert.equal(win.document.body.classList.contains('suiri-sessao-transicao'), true);
     assert.deepEqual(JSON.parse(win.localStorage.getItem('suiri-quiosque:empresa')), [lembrada,nova]);
 
+    // Refaz a inicialização para verificar a lista na conta que entrou após o recarregamento.
+    win.usuarioAtual = nova;
+    win.perfilAtual = {nome:'Carla'};
+    win.empresaAtualId = 'empresa';
+    win.document.body.classList.remove('suiri-sessao-transicao');
     verificarEquipe = async () => ({data:[equipe[2]],error:null});
     await el('suiri-trocar-usuario').onclick();
     assert.equal(lista().length, 1);
@@ -133,7 +161,35 @@ try {
     await el('suiri-trocar-usuario').onclick();
     assert.equal(lista().length, 0);
     assert.match(el('suiri-quiosque-status').textContent, /internet/);
-    console.log('Quiosque: equipe completa, primeiro acesso, senha, isolamento por empresa e falhas de autenticação: OK');
+    console.log('Quiosque: equipe, senha, falha de troca preservada e recarga sem reutilizar a interface: OK');
 } finally {
     win.close();
 }
+
+for (const [evento, sessao] of [['SIGNED_IN', {user:nova}], ['SIGNED_OUT', null]]) {
+    const outraAba = new JSDOM('<main id="tela-app">Dados da conta anterior</main>', {
+        url:'https://suiri.test/', runScripts:'outside-only'
+    }).window;
+    let notificar;
+    let recarregou = false;
+    try {
+        Object.assign(outraAba, {
+            usuarioAtual:atual,
+            perfilAtual:{is_admin:true},
+            empresaAtualId:'empresa',
+            cliente:{auth:{onAuthStateChange: fn => { notificar = fn; }}},
+            recarregarTeste:() => { recarregou = true; }
+        });
+        const core = fs.readFileSync(new URL('../app-core.js', import.meta.url), 'utf8');
+        const trecho = core.slice(core.indexOf('let sessaoSuiriRecarregando'),
+            core.indexOf('// ------------------ EVENTOS DE INICIALIZAÇÃO'));
+        outraAba.eval(trecho.replace('window.location.reload();', 'window.recarregarTeste();'));
+        notificar(evento, sessao);
+        assert.equal(recarregou, true);
+        assert.equal(outraAba.usuarioAtual, null);
+        assert.equal(outraAba.document.body.classList.contains('suiri-sessao-transicao'), true);
+    } finally {
+        outraAba.close();
+    }
+}
+console.log('Sessão em outra aba: mudança de conta e saída cobrem a interface antes da recarga: OK');

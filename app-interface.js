@@ -176,8 +176,8 @@
                 }
                 await window.inicializacaoSuiri;
                 if (!origemAtiva()) return;
-                const tela = el('tela-app');
-                tela.classList.add('oculto');
+                window.suiriConfirmandoTroca = true;
+                document.body.classList.add('suiri-sessao-transicao');
                 let acesso;
                 try {
                     acesso = await cliente.auth.setSession({
@@ -186,16 +186,22 @@
                 } catch {
                     acesso = null;
                 }
-                if (acesso?.error || !acesso?.data?.user) {
-                    if (usuarioAtual) tela.classList.remove('oculto');
-                    status.textContent = 'Não foi possível trocar de usuário. Tente novamente.';
+                if (!acesso?.error && acesso?.data?.user?.id === conta.id) {
+                    salvarContas(empresa, [...contas(empresa).filter(item => item.id !== conta.id), {id:conta.id, email:endereco}]);
+                    window.recarregarSessaoSuiri();
                     return;
                 }
-                window.pararInterfaceSuiri();
-                usuarioAtual = acesso.data.user;
-                perfilAtual = null;
-                empresaAtualId = null;
-                await window.iniciarApp();
+
+                // A troca pode falhar depois de o Auth ter substituído a sessão.
+                // A interface anterior só volta se a identidade original ainda for a mesma.
+                const sessao = await cliente.auth.getSession().catch(() => null);
+                if (sessao?.error || sessao?.data?.session?.user?.id !== usuario) {
+                    window.recarregarSessaoSuiri();
+                    return;
+                }
+                window.suiriConfirmandoTroca = false;
+                document.body.classList.remove('suiri-sessao-transicao');
+                status.textContent = 'Não foi possível trocar de usuário. Tente novamente.';
             } finally {
                 senha.value = '';
                 trocando = false;
