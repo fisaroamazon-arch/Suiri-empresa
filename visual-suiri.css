@@ -302,3 +302,22 @@ html[data-tema="escuro"] .tag-setor {background:var(--accent-soft)!important;col
 .suiri-marca-app:has(.consumo-sino:not(.oculto)) {column-gap:8px;}
 #badge-consumo-pendencias {top:0;right:0;}
 #video-leitor-camera-gestao {object-fit:contain;}
+
+.suiri-ajuste.suiri-download-ajuste {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.suiri-download-acao {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 8px 14px;
+    font-weight: 650;
+    text-decoration: none;
+}
+.suiri-download-acao:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+}
